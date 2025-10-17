@@ -19,6 +19,7 @@
 # on respective methods
 
 from .batch_norm import fix, validate  # noqa
+from .gru import fix, validate  # noqa
 from .instance_norm import fix, validate  # noqa
 from .lstm import fix, validate  # noqa
 from .module_validator import ModuleValidator

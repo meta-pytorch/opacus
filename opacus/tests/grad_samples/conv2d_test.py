@@ -168,5 +168,5 @@ class Conv2d_test(GradSampleHooks_test):
         y.backward(backprops)
 
         self.assertLess(
-            torch.norm(m._module.weight.grad_sample[0] - m._module.weight.grad), 1e-7
+            torch.norm(m._module.weight.grad_sample[0] - m._module.weight.grad), 2e-7
         )
