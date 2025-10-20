@@ -17,6 +17,7 @@ from typing import Sequence, Type, Union
 
 import torch.nn as nn
 
+from .grad_sample_controller import GradSampleController
 from .grad_sample_module import GradSampleModule
 from .grad_sample_module_fast_gradient_clipping import (
     GradSampleModuleFastGradientClipping,
@@ -53,6 +54,7 @@ def register_grad_sampler(
         for target_class in target_classes:
             GradSampleModule.GRAD_SAMPLERS[target_class] = f
             GradSampleModuleFastGradientClipping.GRAD_SAMPLERS[target_class] = f
+            GradSampleController.GRAD_SAMPLERS[target_class] = f
         return f
 
     return decorator
@@ -113,4 +115,28 @@ def get_gsm_class(grad_sample_mode: str) -> Type[AbstractGradSampleModule]:
         raise ValueError(
             f"Unexpected grad_sample_mode: {grad_sample_mode}. "
             f"Allowed values: hooks, ew"
+        )
+
+
+def wrap_model_in_controller(model: nn.Module, grad_sample_mode: str, *args, **kwargs):
+    cls = get_gsc_class(grad_sample_mode)
+    if grad_sample_mode == "functorch":
+        kwargs["force_functorch"] = True
+    return cls(model, *args, **kwargs)
+
+
+def get_gsc_class(grad_sample_mode: str) -> Type[GradSampleController]:
+    """
+    Returns AbstractGradSampleModule subclass corresponding to the input mode.
+    See README for a detailed comparison between grad sample modes.
+
+    :param grad_sample_mode:
+    :return:
+    """
+    if grad_sample_mode in ["hooks", "functorch"]:
+        return GradSampleController
+    else:
+        raise ValueError(
+            f"Unexpected grad_sample_mode: {grad_sample_mode}. "
+            f"Allowed values: hooks, functorch"
         )
