@@ -45,7 +45,9 @@ def FSDP2Wrapper(model: nn.Module, **kwargs) -> nn.Module:
     opacus_high_precision_layers = kwargs.get("opacus_high_precision_layers", [])
     for module in iterate_submodules(model):
         if (type(module) in sampler_classes) or (not has_trainable_params(module)):
-            if isinstance(module, opacus_high_precision_layers):
+            if len(opacus_high_precision_layers) > 0 and isinstance(
+                module, opacus_high_precision_layers
+            ):
                 # For certain layers, higher precision is needed to stablize the training of DP-SGD.
                 fully_shard(
                     module,
