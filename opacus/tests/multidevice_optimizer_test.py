@@ -24,7 +24,9 @@ import unittest
 import torch
 import torch.nn as nn
 from opacus.optimizers.adaclipoptimizer import AdaClipDPOptimizer
+from opacus.optimizers.ddp_perlayeroptimizer import _clip_and_accumulate_parameter
 from opacus.optimizers.optimizer import DPOptimizer
+from opacus.optimizers.perlayeroptimizer import DPPerLayerOptimizer
 
 
 class MultiDeviceModel(nn.Module):
@@ -68,11 +70,8 @@ class MultiDeviceOptimizerTest(unittest.TestCase):
             loss_reduction="mean",
         )
 
-        # Create batch and compute gradients
+        # Create batch size for gradients
         batch_size = 4
-        x = torch.randn(batch_size, 10)
-        y = torch.randint(0, 5, (batch_size,))
-        criterion = nn.CrossEntropyLoss()
 
         # Simulate per-sample gradients on different devices
         model.zero_grad()
@@ -101,7 +100,7 @@ class MultiDeviceOptimizerTest(unittest.TestCase):
             self.assertEqual(
                 p.summed_grad.device,
                 p.device,
-                f"summed_grad should be on same device as parameter",
+                "summed_grad should be on same device as parameter",
             )
 
     @unittest.skipIf(torch.cuda.device_count() < 2, "Need at least 2 GPUs")
@@ -127,10 +126,8 @@ class MultiDeviceOptimizerTest(unittest.TestCase):
             unclipped_num_std=0.5,
         )
 
-        # Create batch and compute gradients
+        # Create batch size for gradients
         batch_size = 4
-        x = torch.randn(batch_size, 10)
-        y = torch.randint(0, 5, (batch_size,))
 
         # Simulate per-sample gradients on different devices
         model.zero_grad()
@@ -159,7 +156,7 @@ class MultiDeviceOptimizerTest(unittest.TestCase):
             self.assertEqual(
                 p.summed_grad.device,
                 p.device,
-                f"summed_grad should be on same device as parameter",
+                "summed_grad should be on same device as parameter",
             )
 
         # Verify AdaClip-specific tracking
@@ -183,11 +180,8 @@ class MultiDeviceOptimizerTest(unittest.TestCase):
             loss_reduction="mean",
         )
 
-        # Create batch
+        # Create batch size for gradients
         batch_size = 4
-        x = torch.randn(batch_size, 10)
-        y = torch.randint(0, 5, (batch_size,))
-        criterion = nn.CrossEntropyLoss()
 
         # Simulate per-sample gradients
         model.zero_grad()
@@ -196,7 +190,7 @@ class MultiDeviceOptimizerTest(unittest.TestCase):
 
         # Full step should work without device errors
         try:
-            result = dp_optimizer.step()
+            dp_optimizer.step()
             success = True
         except RuntimeError as e:
             if "Expected all tensors to be on the same device" in str(e):
@@ -229,10 +223,8 @@ class MultiDeviceOptimizerTest(unittest.TestCase):
             unclipped_num_std=0.5,
         )
 
-        # Create batch
+        # Create batch size for gradients
         batch_size = 4
-        x = torch.randn(batch_size, 10)
-        y = torch.randint(0, 5, (batch_size,))
 
         # Simulate per-sample gradients
         model.zero_grad()
@@ -241,7 +233,7 @@ class MultiDeviceOptimizerTest(unittest.TestCase):
 
         # Full step should work without device errors
         try:
-            result = dp_optimizer.step()
+            dp_optimizer.step()
             success = True
         except RuntimeError as e:
             if "Expected all tensors to be on the same device" in str(e):
@@ -254,6 +246,142 @@ class MultiDeviceOptimizerTest(unittest.TestCase):
 
         # Verify clipbound was updated
         self.assertIsNotNone(dp_optimizer.max_grad_norm)
+
+    @unittest.skipIf(torch.cuda.device_count() < 2, "Need at least 2 GPUs")
+    def test_perlayer_optimizer_multidevice_clip_and_accumulate(self):
+        """Test that DPPerLayerOptimizer handles parameters on different devices."""
+        device1 = torch.device("cuda:0")
+        device2 = torch.device("cuda:1")
+
+        model = MultiDeviceModel(device1, device2)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+
+        # Create per-layer max grad norms (one for each parameter)
+        num_params = len(list(model.parameters()))
+        max_grad_norms = [1.0] * num_params
+
+        # Wrap optimizer with DPPerLayerOptimizer
+        dp_optimizer = DPPerLayerOptimizer(
+            optimizer=optimizer,
+            noise_multiplier=0.0,
+            max_grad_norm=max_grad_norms,
+            expected_batch_size=4,
+            loss_reduction="mean",
+        )
+
+        # Create batch
+        batch_size = 4
+
+        # Simulate per-sample gradients on different devices
+        model.zero_grad()
+        for p in model.parameters():
+            p.grad_sample = torch.randn(batch_size, *p.shape, device=p.device)
+
+        # This should not raise any device mismatch errors
+        try:
+            dp_optimizer.clip_and_accumulate()
+            success = True
+        except RuntimeError as e:
+            if "Expected all tensors to be on the same device" in str(e):
+                success = False
+                self.fail(f"Device mismatch error in clip_and_accumulate: {e}")
+            else:
+                raise
+
+        self.assertTrue(
+            success, "clip_and_accumulate should handle multi-device parameters"
+        )
+
+        # Verify that summed_grad was created on the correct device for each parameter
+        for p in model.parameters():
+            self.assertIsNotNone(p.summed_grad, "summed_grad should be set")
+            self.assertEqual(
+                p.summed_grad.device,
+                p.device,
+                "summed_grad should be on same device as parameter",
+            )
+
+    @unittest.skipIf(torch.cuda.device_count() < 2, "Need at least 2 GPUs")
+    def test_perlayer_optimizer_multidevice_full_step(self):
+        """Test full optimizer step with DPPerLayerOptimizer and multi-device model."""
+        device1 = torch.device("cuda:0")
+        device2 = torch.device("cuda:1")
+
+        model = MultiDeviceModel(device1, device2)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+
+        num_params = len(list(model.parameters()))
+        max_grad_norms = [1.0] * num_params
+
+        dp_optimizer = DPPerLayerOptimizer(
+            optimizer=optimizer,
+            noise_multiplier=0.0,
+            max_grad_norm=max_grad_norms,
+            expected_batch_size=4,
+            loss_reduction="mean",
+        )
+
+        # Create batch
+        batch_size = 4
+
+        # Simulate per-sample gradients
+        model.zero_grad()
+        for p in model.parameters():
+            p.grad_sample = torch.randn(batch_size, *p.shape, device=p.device)
+
+        # Full step should work without device errors
+        try:
+            dp_optimizer.step()
+            success = True
+        except RuntimeError as e:
+            if "Expected all tensors to be on the same device" in str(e):
+                success = False
+                self.fail(f"Device mismatch error in step: {e}")
+            else:
+                raise
+
+        self.assertTrue(success, "step should handle multi-device parameters")
+
+    @unittest.skipIf(torch.cuda.device_count() < 2, "Need at least 2 GPUs")
+    def test_clip_and_accumulate_parameter_multidevice(self):
+        """Test _clip_and_accumulate_parameter helper function with multi-device."""
+        device2 = torch.device("cuda:1")
+
+        # Create a parameter on device2
+        param = nn.Parameter(torch.randn(5, 10, device=device2))
+        batch_size = 4
+        max_grad_norm = 1.0
+
+        # Initialize summed_grad as None (as expected by the function)
+        param.summed_grad = None
+
+        # Create fake per-sample gradients on device2
+        param.grad_sample = torch.randn(batch_size, 5, 10, device=device2)
+
+        # This should not raise any device mismatch errors
+        try:
+            _clip_and_accumulate_parameter(param, max_grad_norm)
+            success = True
+        except RuntimeError as e:
+            if "Expected all tensors to be on the same device" in str(e):
+                success = False
+                self.fail(
+                    f"Device mismatch error in _clip_and_accumulate_parameter: {e}"
+                )
+            else:
+                raise
+
+        self.assertTrue(
+            success, "_clip_and_accumulate_parameter should handle multi-device"
+        )
+
+        # Verify that summed_grad was created on the correct device
+        self.assertIsNotNone(param.summed_grad, "summed_grad should be set")
+        self.assertEqual(
+            param.summed_grad.device,
+            param.device,
+            "summed_grad should be on same device as parameter",
+        )
 
 
 if __name__ == "__main__":
