@@ -42,7 +42,7 @@ and the output will have a shape <code class="docutils literal notranslate"><spa
 the module of shape <code class="docutils literal notranslate"><span class="pre">(E)</span></code>, where <code class="docutils literal notranslate"><span class="pre">E</span></code> is the embedding dimension.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.parameter.Parameter.html#torch.nn.parameter.Parameter" title="(in PyTorch v2.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.parameter.Parameter</span></code></a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.parameter.Parameter.html#torch.nn.parameter.Parameter" title="(in PyTorch v2.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.parameter.Parameter</span></code></a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -56,7 +56,7 @@ the module of shape <code class="docutils literal notranslate"><span class="pre"
 </div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>embed_dim</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a></span>) – Embedding dimension</p>
+<dd class="field-odd"><p><strong>embed_dim</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a></span>) – Embedding dimension</p>
 </dd>
 </dl>
 <dl class="py method">
@@ -78,7 +78,7 @@ registered hooks while the latter silently ignores them.</p>
 <em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">opacus.layers.dp_multihead_attention.</span></span><span class="sig-name descname"><span class="pre">DPMultiheadAttention</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">embed_dim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_heads</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bias</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_bias_kv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_zero_attn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kdim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vdim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_first</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/layers/dp_multihead_attention.html#DPMultiheadAttention"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.layers.dp_multihead_attention.DPMultiheadAttention" title="Link to this definition">¶</a></dt>
 <dd><p>This is DP-friendly implementation of nn.MultiheadAttention.
 For full reference see original module refer to
-<a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention.html#torch.nn.MultiheadAttention" title="(in PyTorch v2.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.MultiheadAttention</span></code></a>.</p>
+<a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention.html#torch.nn.MultiheadAttention" title="(in PyTorch v2.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.MultiheadAttention</span></code></a>.</p>
 <p>Current implementation leverages pytorch modules as building blocks
 to allow DP engine to calculate per-sample gradients.
 This is in contrast with original implementation based on nn.functional.</p>
@@ -100,7 +100,7 @@ registered hooks while the latter silently ignores them.</p>
 <dt class="sig sig-object py" id="opacus.layers.dp_multihead_attention.DPMultiheadAttention.load_state_dict">
 <span class="sig-name descname"><span class="pre">load_state_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state_dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/layers/dp_multihead_attention.html#DPMultiheadAttention.load_state_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.layers.dp_multihead_attention.DPMultiheadAttention.load_state_dict" title="Link to this definition">¶</a></dt>
 <dd><p>Loads module from previously saved state.</p>
-<p>Supports loading from both <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention.html#torch.nn.MultiheadAttention" title="(in PyTorch v2.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.MultiheadAttention</span></code></a> and
+<p>Supports loading from both <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention.html#torch.nn.MultiheadAttention" title="(in PyTorch v2.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.MultiheadAttention</span></code></a> and
 <a class="reference internal" href="#opacus.layers.dp_multihead_attention.DPMultiheadAttention" title="opacus.layers.dp_multihead_attention.DPMultiheadAttention"><code class="xref py py-class docutils literal notranslate"><span class="pre">opacus.layers.dp_multihead_attention.DPMultiheadAttention</span></code></a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -136,13 +136,13 @@ designed for end-users.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>destination</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.13)"><em>dict</em></a><em>, </em><em>optional</em>) – If provided, the state of module will
+<li><p><strong>destination</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>, </em><em>optional</em>) – If provided, the state of module will
 be updated into the dict and the same object is returned.
 Otherwise, an <code class="docutils literal notranslate"><span class="pre">OrderedDict</span></code> will be created and returned.
 Default: <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
-<li><p><strong>prefix</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a><em>, </em><em>optional</em>) – a prefix added to parameter and buffer
+<li><p><strong>prefix</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – a prefix added to parameter and buffer
 names to compose the keys in state_dict. Default: <code class="docutils literal notranslate"><span class="pre">''</span></code>.</p></li>
-<li><p><strong>keep_vars</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em>, </em><em>optional</em>) – by default the <a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a> s
+<li><p><strong>keep_vars</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>optional</em>) – by default the <a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a> s
 returned in the state dict are detached from autograd. If it’s
 set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, detaching will not be performed.
 Default: <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
@@ -152,7 +152,7 @@ Default: <code class="docutils literal notranslate"><span class="pre">False</spa
 <dd class="field-even"><p>a dictionary containing a whole state of the module</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.13)">dict</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)">dict</a></p>
 </dd>
 </dl>
 <p>Example:</p>

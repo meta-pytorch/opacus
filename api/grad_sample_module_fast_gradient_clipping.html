@@ -34,7 +34,7 @@
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>m</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module to be wrapped</p></li>
+<li><p><strong>m</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module to be wrapped</p></li>
 <li><p><strong>batch_first</strong> – Flag to indicate if the input tensor to the corresponding module
 has the first dimension representing the batch. If set to True, dimensions on
 input tensor are expected be <code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">...]</span></code>, otherwise
@@ -42,7 +42,7 @@ input tensor are expected be <code class="docutils literal notranslate"><span cl
 <li><p><strong>loss_reduction</strong> – Indicates if the loss reduction (for aggregating the gradients)
 is a sum or a mean operation. Can take values “sum” or “mean”</p></li>
 <li><p><strong>max_grad_norm</strong> – The value at which gradients are to be clipped.</p></li>
-<li><p><strong>strict</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – If set to True, the input module will be validated to make sure that
+<li><p><strong>strict</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – If set to True, the input module will be validated to make sure that
 it does not have buffers in all its submodules.</p></li>
 <li><p><strong>force_functorch</strong> – If set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, will use functorch to compute
 all per sample gradients. Otherwise, functorch will be used only
@@ -53,7 +53,7 @@ Gradient Clipping will be used for all layers.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#NotImplementedError" title="(in Python v3.13)"><strong>NotImplementedError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">strict</span></code> is set to <code class="docutils literal notranslate"><span class="pre">True</span></code> and module <code class="docutils literal notranslate"><span class="pre">m</span></code> (or any of its
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#NotImplementedError" title="(in Python v3.14)"><strong>NotImplementedError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">strict</span></code> is set to <code class="docutils literal notranslate"><span class="pre">True</span></code> and module <code class="docutils literal notranslate"><span class="pre">m</span></code> (or any of its
     submodules) includes a buffer.</p>
 </dd>
 </dl>
@@ -66,11 +66,11 @@ stored in <code class="docutils literal notranslate"><span class="pre">norm_samp
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>module</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module,</p></li>
-<li><p><strong>_forward_input</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – torch.Tensor,</p></li>
-<li><p><strong>forward_output</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – torch.Tensor,</p></li>
-<li><p><strong>loss_reduction</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – str,</p></li>
-<li><p><strong>batch_first</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – bool,</p></li>
+<li><p><strong>module</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module,</p></li>
+<li><p><strong>_forward_input</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – torch.Tensor,</p></li>
+<li><p><strong>forward_output</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – torch.Tensor,</p></li>
+<li><p><strong>loss_reduction</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – str,</p></li>
+<li><p><strong>batch_first</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – bool,</p></li>
 </ul>
 </dd>
 </dl>
@@ -81,7 +81,7 @@ stored in <code class="docutils literal notranslate"><span class="pre">norm_samp
 <dd><p>Get per-example gradient scaling factor for clipping.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span></p>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span></p>
 </dd>
 </dl>
 </dd></dl>
@@ -91,7 +91,7 @@ stored in <code class="docutils literal notranslate"><span class="pre">norm_samp
 <dd><p>Get per-example gradient norms.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span></p>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span></p>
 </dd>
 </dl>
 </dd></dl>
@@ -102,7 +102,7 @@ stored in <code class="docutils literal notranslate"><span class="pre">norm_samp
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>module</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module to be checked</p></li>
+<li><p><strong>module</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module to be checked</p></li>
 <li><p><strong>force_functorch</strong> – If set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, will use functorch to compute
 all per sample gradients. Otherwise, functorch will be used only
 for layers without registered grad sampler methods.</p></li>
@@ -115,7 +115,7 @@ Gradient Clipping will be used for all layers.</p></li>
 </dd></dl>
 <dl class="py property">
 <dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.per_sample_gradient_norms">
-<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">per_sample_gradient_norms</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.8)"><span class="pre">Tensor</span></a></em><a class="headerlink" href="#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.per_sample_gradient_norms" title="Link to this definition">¶</a></dt>
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">per_sample_gradient_norms</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><span class="pre">Tensor</span></a></em><a class="headerlink" href="#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.per_sample_gradient_norms" title="Link to this definition">¶</a></dt>
 <dd><p>Returns per sample gradient norms. Note that these are not privatized and should only be used for debugging purposes or in non-private settings</p>
 </dd></dl>
 </dd></dl>
@@ -126,13 +126,13 @@ Gradient Clipping will be used for all layers.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>param</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – Parameter to which <code class="docutils literal notranslate"><span class="pre">_norm_sample</span></code> will be added</p></li>
-<li><p><strong>grad_sample</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – Per-sample gradients tensor. Must be of the same
+<li><p><strong>param</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – Parameter to which <code class="docutils literal notranslate"><span class="pre">_norm_sample</span></code> will be added</p></li>
+<li><p><strong>grad_sample</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – Per-sample gradients tensor. Must be of the same
 shape as <code class="docutils literal notranslate"><span class="pre">param</span></code> with extra batch dimension</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
 </dd>
 </dl>
 </dd></dl>
