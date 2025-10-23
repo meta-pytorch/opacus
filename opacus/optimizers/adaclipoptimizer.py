@@ -97,6 +97,11 @@ class AdaClipDPOptimizer(DPOptimizer):
         per_param_norms = [
             g.view(len(g), -1).norm(2, dim=-1) for g in self.grad_samples
         ]
+
+        if per_param_norms:
+            target_device = per_param_norms[0].device
+            per_param_norms = [norm.to(target_device) for norm in per_param_norms]
+
         per_sample_norms = torch.stack(per_param_norms, dim=1).norm(2, dim=1)
         per_sample_clip_factor = (self.max_grad_norm / (per_sample_norms + 1e-6)).clamp(
             max=1.0
@@ -112,7 +117,9 @@ class AdaClipDPOptimizer(DPOptimizer):
         for p in self.params:
             _check_processed_flag(p.grad_sample)
             grad_sample = self._get_flat_grad_sample(p)
-            grad = torch.einsum("i,i...", per_sample_clip_factor, grad_sample)
+
+            clip_factor_on_device = per_sample_clip_factor.to(grad_sample.device)
+            grad = torch.einsum("i,i...", clip_factor_on_device, grad_sample)
 
             if p.summed_grad is not None:
                 p.summed_grad += grad
