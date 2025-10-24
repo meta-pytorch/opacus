@@ -492,7 +492,7 @@ class BasePrivacyEngineTest(ABC):
         Test that the privacy engine raises error if ModuleValidator.fix(model) is
         called after the optimizer is created
         """
-        model = models.densenet121(pretrained=True)
+        model = models.densenet121(weights=None)
         num_ftrs = model.classifier.in_features
         model.classifier = nn.Sequential(nn.Linear(num_ftrs, 10), nn.Sigmoid())
         optimizer = torch.optim.SGD(
