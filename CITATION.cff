@@ -1,0 +1,43 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: >-
+  Opacus: User-Friendly Differential Privacy Library in
+  PyTorch
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Ashkan
+    family-names: Yousefpour
+  - given-names: Igor
+    family-names: Shilov
+  - given-names: Alexandre
+    family-names: Sablayrolles
+  - given-names: Davide
+    family-names: Testuggine
+  - given-names: Karthik
+    family-names: Prasad
+  - given-names: Mani
+    family-names: Malek
+  - given-names: John
+    family-names: Nguyen
+  - given-names: Sayan
+    family-names: Ghosh
+  - given-names: Akash
+    family-names: Bharadwaj
+  - given-names: Jessica
+    family-names: Zhao
+  - given-names: Graham
+    family-names: Cormode
+  - given-names: Ilya
+    family-names: Mironov
+identifiers:
+  - type: doi
+    value: 10.48550/arXiv.2109.12298
+repository-code: 'https://github.com/pytorch/opacus'
+url: 'https://opacus.ai/'
+abstract: Training PyTorch models with differential privacy.
+license: Apache-2.0
