@@ -27,6 +27,10 @@
     {
       "id": "ddp_tutorial",
       "title": "Training on multiple GPUs with DistributedDataParallel"
+    },
+    {
+      "id": "controller_based_privacy_engine",
+      "title": "Training with Controller-Based Privacy Engine (No Model Wrapping)"
     }
   ]
 }

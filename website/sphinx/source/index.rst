@@ -12,6 +12,7 @@ Opacus API Reference
    :caption: API Reference
 
    privacy_engine
+   privacy_engine_gsc
    grad_sample_module
    grad_sample_module_fast_gradient_clipping
    optim/optimizers

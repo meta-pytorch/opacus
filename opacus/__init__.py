@@ -14,13 +14,20 @@
 # limitations under the License.
 
 from . import utils
-from .grad_sample import GradSampleModule, GradSampleModuleFastGradientClipping
+from .grad_sample import (
+    GradSampleController,
+    GradSampleModule,
+    GradSampleModuleFastGradientClipping,
+)
 from .privacy_engine import PrivacyEngine
+from .privacy_engine_gsc import PrivacyEngineGradSampleController
 from .version import __version__
 
 
 __all__ = [
     "PrivacyEngine",
+    "PrivacyEngineGradSampleController",
+    "GradSampleController",
     "GradSampleModule",
     "GradSampleModuleFastGradientClipping",
     "utils",
