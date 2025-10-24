@@ -444,6 +444,11 @@ class DPOptimizer(Optimizer):
             per_param_norms = [
                 g.reshape(len(g), -1).norm(2, dim=-1) for g in self.grad_samples
             ]
+
+            if per_param_norms:
+                target_device = per_param_norms[0].device
+                per_param_norms = [norm.to(target_device) for norm in per_param_norms]
+
             per_sample_norms = torch.stack(per_param_norms, dim=1).norm(2, dim=1)
             per_sample_clip_factor = (
                 self.max_grad_norm / (per_sample_norms + 1e-6)
@@ -457,8 +462,10 @@ class DPOptimizer(Optimizer):
             # for mixed precision, optimizer parameters are usually in FP32
             # lower precision grads will be cast up to FP32
             grad_sample = grad_sample.to(p.dtype)
-            per_sample_clip_factor = per_sample_clip_factor.to(p.dtype)
-            grad = torch.einsum("i,i...", per_sample_clip_factor, grad_sample)
+            clip_factor_on_device = per_sample_clip_factor.to(grad_sample.device).to(
+                p.dtype
+            )
+            grad = torch.einsum("i,i...", clip_factor_on_device, grad_sample)
 
             if p.summed_grad is not None:
                 p.summed_grad += grad

@@ -422,3 +422,97 @@ class GradSampleModuleFastGradientClippingEmbeddingLayerTest(unittest.TestCase):
         logging.info(f"Max difference between (vanilla) Opacus and FGC = {max(diff)}")
         msg = "Fail: Gradients from vanilla DP-SGD and from fast gradient clipping are different"
         assert torch.allclose(flat_grads_normal, flat_grads_gc, atol=1e-3), msg
+
+    @unittest.skipIf(torch.cuda.device_count() < 2, "Need at least 2 GPUs")
+    def test_multidevice_get_norm_sample(self):
+        """Test that get_norm_sample handles parameters on different devices."""
+        device1 = torch.device("cuda:0")
+        device2 = torch.device("cuda:1")
+
+        # Create a simple model with parameters on different devices
+        class MultiDeviceModel(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.fc1 = nn.Linear(10, 20).to(device1)
+                self.fc2 = nn.Linear(20, 5).to(device2)
+
+            def forward(self, x):
+                x = x.to(device1)
+                x = torch.relu(self.fc1(x))
+                x = x.to(device2)
+                return self.fc2(x)
+
+        model = MultiDeviceModel()
+        grad_sample_module = GradSampleModuleFastGradientClipping(
+            model, max_grad_norm=1.0, use_ghost_clipping=False
+        )
+
+        # Simulate _norm_sample on different devices
+        batch_size = 4
+        for param in grad_sample_module.trainable_parameters:
+            param._norm_sample = torch.randn(batch_size, device=param.device)
+
+        # This should not raise any device mismatch errors
+        try:
+            norm_sample = grad_sample_module.get_norm_sample()
+            success = True
+        except RuntimeError as e:
+            if "Expected all tensors to be on the same device" in str(e):
+                success = False
+                self.fail(f"Device mismatch error in get_norm_sample: {e}")
+            else:
+                raise
+
+        self.assertTrue(
+            success, "get_norm_sample should handle multi-device parameters"
+        )
+        self.assertEqual(norm_sample.shape[0], batch_size)
+
+    @unittest.skipIf(torch.cuda.device_count() < 2, "Need at least 2 GPUs")
+    def test_multidevice_get_clipping_coef(self):
+        """Test that get_clipping_coef handles parameters on different devices."""
+        device1 = torch.device("cuda:0")
+        device2 = torch.device("cuda:1")
+
+        # Create a simple model with parameters on different devices
+        class MultiDeviceModel(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.fc1 = nn.Linear(10, 20).to(device1)
+                self.fc2 = nn.Linear(20, 5).to(device2)
+
+            def forward(self, x):
+                x = x.to(device1)
+                x = torch.relu(self.fc1(x))
+                x = x.to(device2)
+                return self.fc2(x)
+
+        model = MultiDeviceModel()
+        max_grad_norm = 1.0
+        grad_sample_module = GradSampleModuleFastGradientClipping(
+            model, max_grad_norm=max_grad_norm, use_ghost_clipping=False
+        )
+
+        # Simulate _norm_sample on different devices
+        batch_size = 4
+        for param in grad_sample_module.trainable_parameters:
+            # Create norms with values that will require clipping
+            param._norm_sample = torch.ones(batch_size, device=param.device) * 2.0
+
+        # This should not raise any device mismatch errors
+        try:
+            clipping_coef = grad_sample_module.get_clipping_coef()
+            success = True
+        except RuntimeError as e:
+            if "Expected all tensors to be on the same device" in str(e):
+                success = False
+                self.fail(f"Device mismatch error in get_clipping_coef: {e}")
+            else:
+                raise
+
+        self.assertTrue(
+            success, "get_clipping_coef should handle multi-device parameters"
+        )
+        self.assertEqual(clipping_coef.shape[0], batch_size)
+        # Verify clipping coefficients are correct
+        self.assertTrue(torch.all(clipping_coef <= 1.0))
