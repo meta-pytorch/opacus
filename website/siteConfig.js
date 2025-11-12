@@ -34,7 +34,7 @@ const siteConfig = {
   cname: 'opacus.ai',
 
   // used for publishing and more
-  organizationName: 'pytorch',
+  organizationName: 'meta-pytorch',
   projectName: 'opacus',
 
   // Google analytics
@@ -100,7 +100,7 @@ const siteConfig = {
   docsSideNavCollapsible: true,
 
   // URL for editing docs
-  editUrl: 'https://github.com/pytorch/opacus/tree/main/docs/',
+  editUrl: 'https://github.com/meta-pytorch/opacus/tree/main/docs/',
 
   // Disable logo text so we can just show the logo
   disableHeaderTitle: true,
