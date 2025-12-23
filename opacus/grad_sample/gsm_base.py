@@ -14,7 +14,7 @@
 # limitations under the License.
 
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Optional
 
 import torch.nn as nn
@@ -32,7 +32,78 @@ OPACUS_PARAM_MONKEYPATCH_ATTRS = [
 ]
 
 
-class AbstractGradSampleModule(nn.Module, ABC):
+class AbstractGradSampleHooks(ABC):
+    """
+    Abstract base class for hooks-based grad sample computation.
+
+    This class provides the interface for managing gradient sample attributes
+    and hooks without inheriting from nn.Module. Extends the internal nn.Module
+    so that its parameter tensors have an extra field called .grad_sample.
+    """
+
+    def __init__(
+        self,
+        m: nn.Module,
+        *,
+        batch_first=True,
+        loss_reduction="mean",
+    ):
+        """
+        Args:
+            m: nn.Module to attach hooks to
+            batch_first: Flag to indicate if the input tensor has batch as first dimension
+            loss_reduction: Indicates if the loss reduction is "sum" or "mean"
+        """
+        self._module = m
+        self.batch_first = batch_first
+        self.loss_reduction = loss_reduction
+
+        for _, p in trainable_parameters(self._module):
+            p.grad_sample = None
+            p._forward_counter = 0
+
+    def set_grad_sample_to_none(self):
+        """
+        Sets ``.grad_sample`` to None for all parameters
+        """
+        for p in self._module.parameters():
+            p.grad_sample = None
+
+    def del_grad_sample(self):
+        """
+        Deletes ``.grad_sample`` attribute from all model parameters
+        """
+        for p in self._module.parameters():
+            if hasattr(p, "grad_sample"):
+                delattr(p, "grad_sample")
+
+    def forbid_grad_accumulation(self):
+        """
+        Forbid gradient accumulation.
+        Subclasses should implement this if they need to detect multiple backward passes.
+        """
+        pass
+
+    def allow_grad_accumulation(self):
+        """
+        Allow gradient accumulation.
+        Subclasses should implement this if they need to detect multiple backward passes.
+        """
+        pass
+
+    def cleanup(self):
+        """
+        Cleanup hook-related attributes from parameters.
+        Removes all Opacus-added attributes like grad_sample, _forward_counter, etc.
+        Subclasses should override this to remove any additional attributes they added.
+        """
+        for attr in OPACUS_PARAM_MONKEYPATCH_ATTRS:
+            for p in self._module.parameters():
+                if hasattr(p, attr):
+                    delattr(p, attr)
+
+
+class AbstractGradSampleModule(nn.Module, AbstractGradSampleHooks, ABC):
     r"""
     Extends nn.Module so that its parameter tensors have an extra field called .grad_sample.
     """
@@ -60,20 +131,17 @@ class AbstractGradSampleModule(nn.Module, ABC):
                 If ``strict`` is set to ``True`` and module ``m`` (or any of its
                 submodules) doesn't have a registered grad sampler function.
         """
-        super().__init__()
-
-        self._module = m
-        self.batch_first = batch_first
-        self.loss_reduction = loss_reduction
+        nn.Module.__init__(self)
+        AbstractGradSampleHooks.__init__(
+            self,
+            m,
+            batch_first=batch_first,
+            loss_reduction=loss_reduction,
+        )
         self.grad_accumulation_hook: Optional[RemovableHandle] = None
 
-        for _, p in trainable_parameters(self):
-            p.grad_sample = None
-            p._forward_counter = 0
-
-    @abstractmethod
     def forward(self, *args, **kwargs):
-        pass
+        return self._module(*args, **kwargs)
 
     def __getattr__(self, item):
         try:
@@ -110,20 +178,6 @@ class AbstractGradSampleModule(nn.Module, ABC):
         self.set_grad_sample_to_none()
         super().zero_grad(set_to_none)
 
-    def set_grad_sample_to_none(self):
-        """
-        Sets ``.grad_sample`` to None
-        """
-        for p in self.parameters():
-            p.grad_sample = None
-
-    def del_grad_sample(self):
-        """
-        Deleted ``.grad_sample`` attribute from all model parameters
-        """
-        for p in self.parameters():
-            del p.grad_sample
-
     def to_standard_module(self) -> nn.Module:
         """
         Returns the standard nn.Module wrapped by this, eliminating all traces
@@ -136,11 +190,8 @@ class AbstractGradSampleModule(nn.Module, ABC):
         return self._module
 
     def _close(self):
-        # Clean up attributes
-        for attr in OPACUS_PARAM_MONKEYPATCH_ATTRS:
-            for p in self.parameters():
-                if hasattr(p, attr):
-                    delattr(p, attr)
+        # Delegate cleanup to hooks
+        self.cleanup()
 
     def __repr__(self):
         return f"{type(self).__name__}({self._module.__repr__()})"
