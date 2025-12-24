@@ -212,18 +212,19 @@ class DPLossFastGradientClipping:
             "mean",
             "sum",
         ], "loss_reduction should be either 'mean' or 'sum'"
+
+        # if the criterion is missing reduction attribute, use module's reduction attribute'
+        if hasattr(criterion, "reduction"):
+            setattr(criterion, "reduction", module.loss_reduction)
+
         assert (
-            loss_reduction
-            == criterion.reduction
-            == module.loss_reduction
-            == optimizer.loss_reduction
+            loss_reduction == module.loss_reduction == optimizer.loss_reduction
         ), "loss_reduction should be the same across GradSampleModule, Optimizer, Criterion, and loss_reduction"
 
         self.optimizer = optimizer
         self.module = module
         self.criterion = criterion
         self.loss_reduction = loss_reduction
-        self.criterion.reduction = "none"
 
     def __call__(self, *args, shape=None, **kwargs) -> DPTensorFastGradientClipping:
         """
