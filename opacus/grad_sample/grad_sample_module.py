@@ -84,6 +84,7 @@ class GradSampleHooks(AbstractGradSampleHooks):
     Hooks-based implementation for computing per-sample gradients.
 
     Computes per-sample gradients using custom-written methods for each layer.
+    Attaches to the model without wrapping it in an nn.Module.
     See README.md for more details
     """
 
@@ -98,6 +99,32 @@ class GradSampleHooks(AbstractGradSampleHooks):
         strict: bool = True,
         force_functorch=False,
     ):
+        """
+
+        Args:
+            m: nn.Module to be attached to
+            batch_first: Flag to indicate if the input tensor to the corresponding module
+                has the first dimension representing the batch. If set to True, dimensions on
+                input tensor are expected be ``[batch_size, ...]``, otherwise
+                ``[K, batch_size, ...]``
+            loss_reduction: Indicates if the loss reduction (for aggregating the gradients)
+                is a sum or a mean operation. Can take values "sum" or "mean"
+            strict: If set to ``True``, the input module will be validated to make sure that none of its submodules includes buffers,
+                which is not currently supported by Opacus.
+                If set to ``False``, per sample gradients will
+                be computed on "best effort" basis - they will be available where
+                possible and set to None otherwise. This is not recommended, because
+                some unsupported modules (e.g. BatchNorm) affect other parameters and
+                invalidate the concept of per sample gradients for the entire model.
+            force_functorch: If set to ``True``, will use functorch to compute
+                all per sample gradients. Otherwise, functorch will be used only
+                for layers without registered grad sampler methods.
+
+        Raises:
+            NotImplementedError
+                If ``strict`` is set to ``True`` and module ``m`` (or any of its
+                submodules) includes a buffer.
+        """
         super().__init__(
             m,
             batch_first=batch_first,

@@ -72,9 +72,10 @@ def create_norm_sample(
 
 class GradSampleHooksFastGradientClipping(GradSampleHooks):
     """
-    Hooks for Fast Gradient and Ghost Clipping.
+    Hooks-based implementation for Fast Gradient and Ghost Clipping.
 
-    Computes norms of gradients without gradient instantiation
+    Computes norms of gradients without gradient instantiation.
+    Attaches to the model without wrapping it in an nn.Module.
     """
 
     NORM_SAMPLERS = {}
@@ -90,6 +91,31 @@ class GradSampleHooksFastGradientClipping(GradSampleHooks):
         max_grad_norm=1,
         use_ghost_clipping=True,
     ):
+        """
+
+        Args:
+            m: nn.Module to be attached to
+            batch_first: Flag to indicate if the input tensor to the corresponding module
+                has the first dimension representing the batch. If set to True, dimensions on
+                input tensor are expected be ``[batch_size, ...]``, otherwise
+                ``[K, batch_size, ...]``
+            loss_reduction: Indicates if the loss reduction (for aggregating the gradients)
+                is a sum or a mean operation. Can take values "sum" or "mean"
+            max_grad_norm: The value at which gradients are to be clipped.
+            strict: If set to True, the input module will be validated to make sure that
+                it does not have buffers in all its submodules.
+            force_functorch: If set to ``True``, will use functorch to compute
+                all per sample gradients. Otherwise, functorch will be used only
+                for layers without registered grad sampler methods.
+            use_ghost_clipping: If set to ``True``, Ghost Clipping
+                will be used for clipping gradients of supported layers. If ``False``, Fast
+                Gradient Clipping will be used for all layers.
+
+        Raises:
+            NotImplementedError
+                If ``strict`` is set to ``True`` and module ``m`` (or any of its
+                submodules) includes a buffer.
+        """
         if logger.isEnabledFor(logging.INFO):
             self.log_module_gradient_sample_mode(
                 module=m,
