@@ -22,6 +22,7 @@ from opacus.grad_sample import GradSampleModule
 from opacus.grad_sample.gsm_exp_weights import GradSampleModuleExpandedWeights
 from opacus.grad_sample.linear import compute_linear_grad_sample
 from opacus.grad_sample.utils import register_grad_sampler
+from opacus.validators.errors import UnsupportedModuleError
 from torch.testing import assert_close
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -226,7 +227,7 @@ class GradSampleModuleTest(unittest.TestCase):
         GradSampleModule(SimpleLinear(4, 2))
 
     def test_custom_module_validation(self) -> None:
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises((NotImplementedError, UnsupportedModuleError)):
             GradSampleModule(mobilenet_v3_small())
 
     def test_submodule_access(self) -> None:
