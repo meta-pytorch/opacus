@@ -96,6 +96,7 @@ training models with privacy and using various Opacus features.
 - [Opacus Guide: Introduction to advanced features](https://github.com/pytorch/opacus/blob/main/tutorials/intro_to_advanced_features.ipynb)
 - [Opacus Guide: Grad samplers](https://github.com/pytorch/opacus/blob/main/tutorials/guide_to_grad_sampler.ipynb)
 - [Opacus Guide: Module Validator and Fixer](https://github.com/pytorch/opacus/blob/main/tutorials/guide_to_module_validator.ipynb)
+- [Opacus Guide: Training with Non-Wrapping Mode](https://github.com/pytorch/opacus/blob/main/tutorials/non_wrapping_mode.ipynb)
 
 ## Technical report and citation
 
