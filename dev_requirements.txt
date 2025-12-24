@@ -13,6 +13,7 @@ hypothesis
 tensorboard
 datasets
 transformers
+peft
 scikit-learn
 pytorch-lightning
 lightning-bolts

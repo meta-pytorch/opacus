@@ -215,10 +215,7 @@ class DPLossFastGradientClipping:
             setattr(criterion, "reduction", module.loss_reduction)
 
         assert (
-            loss_reduction
-            == criterion.reduction
-            == module.loss_reduction
-            == optimizer.loss_reduction
+            loss_reduction == module.loss_reduction == optimizer.loss_reduction
         ), "loss_reduction should be the same across GradSampleModule, Optimizer, Criterion, and loss_reduction"
 
         self.optimizer = optimizer
