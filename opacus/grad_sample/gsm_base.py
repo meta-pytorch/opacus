@@ -15,10 +15,11 @@
 
 import logging
 from abc import ABC
-from typing import Optional
+from typing import List, Optional
 
 import torch.nn as nn
-from opacus.utils.module_utils import trainable_parameters
+from opacus.utils.module_utils import trainable_modules, trainable_parameters
+from opacus.validators.errors import UnsupportedModuleError
 from torch.utils.hooks import RemovableHandle
 
 
@@ -47,20 +48,62 @@ class AbstractGradSampleHooks(ABC):
         *,
         batch_first=True,
         loss_reduction="mean",
+        strict: bool = True,
     ):
         """
         Args:
             m: nn.Module to attach hooks to
             batch_first: Flag to indicate if the input tensor has batch as first dimension
             loss_reduction: Indicates if the loss reduction is "sum" or "mean"
+            strict: If set to ``True``, the input module will be validated to make sure that none of its submodules includes buffers,
+                which is not currently supported by Opacus.
         """
         self._module = m
         self.batch_first = batch_first
         self.loss_reduction = loss_reduction
 
+        self.validate(m, strict=strict)
+
         for _, p in trainable_parameters(self._module):
             p.grad_sample = None
             p._forward_counter = 0
+
+    @classmethod
+    def validate(
+        cls, module: nn.Module, *, strict: bool = False
+    ) -> List[UnsupportedModuleError]:
+        """
+        Check if per sample gradients can be fully computed for a given model
+
+        Args:
+            module: nn.Module to be checked
+            strict: If set to ``True``, will raise UnsupportedModuleError if
+                unsupported modules are found.
+
+        Returns:
+            List of validation errors if ``strict=False`` and
+            unsupported modules are found
+
+        Raises:
+            UnsupportedModuleError
+                If ``strict=True`` and unsupported modules are found
+        """
+        errors = []
+        errors.extend(
+            [
+                UnsupportedModuleError(
+                    f"Model contains a trainable layer with buffers "
+                    f"that Opacus doesn't currently support({m_name}:{m}). "
+                )
+                for m_name, m in trainable_modules(module)
+                if len(list(m.buffers())) > 0
+            ]
+        )
+        # raise or return errors as needed
+        if strict and len(errors) > 0:
+            raise UnsupportedModuleError(errors)
+        else:
+            return errors
 
     def set_grad_sample_to_none(self):
         """
@@ -114,6 +157,7 @@ class AbstractGradSampleModule(nn.Module, AbstractGradSampleHooks, ABC):
         *,
         batch_first=True,
         loss_reduction="mean",
+        strict: bool = True,
     ):
         """
 
@@ -125,6 +169,8 @@ class AbstractGradSampleModule(nn.Module, AbstractGradSampleHooks, ABC):
                 ``[K, batch_size, ...]``
             loss_reduction: Indicates if the loss reduction (for aggregating the gradients)
                 is a sum or a mean operation. Can take values "sum" or "mean"
+            strict: If set to ``True``, the input module will be validated to make sure that none of its submodules includes buffers,
+                which is not currently supported by Opacus.
 
         Raises:
             NotImplementedError
@@ -137,6 +183,7 @@ class AbstractGradSampleModule(nn.Module, AbstractGradSampleHooks, ABC):
             m,
             batch_first=batch_first,
             loss_reduction=loss_reduction,
+            strict=strict,
         )
         self.grad_accumulation_hook: Optional[RemovableHandle] = None
 
@@ -195,23 +242,3 @@ class AbstractGradSampleModule(nn.Module, AbstractGradSampleHooks, ABC):
 
     def __repr__(self):
         return f"{type(self).__name__}({self._module.__repr__()})"
-
-    def forbid_grad_accumulation(self):
-        """
-        Sets a flag to detect gradient accumulation (multiple forward/backward passes
-        without an optimizer step or clearing out gradients).
-
-        When set, GradSampleModule will throw a ValueError on the second backward pass.
-        :return:
-        """
-        pass
-
-    def allow_grad_accumulation(self):
-        """
-        Unsets a flag to detect gradient accumulation (multiple forward/backward passes
-        without an optimizer step or clearing out gradients).
-
-        When set, GradSampleModule will throw a ValueError on the second backward pass.
-        :return:
-        """
-        pass

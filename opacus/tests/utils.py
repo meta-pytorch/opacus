@@ -62,3 +62,13 @@ class LinearWithExtraParam(nn.Module):
         x = self.fc(x)
         x = x.matmul(self.extra_param)
         return x
+
+
+class ModuleWithBuffer(nn.Module):
+    def __init__(self, in_features: int, out_features: int):
+        super().__init__()
+        self.weight = nn.Parameter(torch.randn(out_features, in_features))
+        self.register_buffer("buffer", torch.randn(out_features))
+
+    def forward(self, x):
+        return F.linear(x, self.weight) + self.buffer

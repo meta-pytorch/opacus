@@ -13,12 +13,53 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List
+
 import torch
 import torch.nn as nn
-from opacus.grad_sample.gsm_base import AbstractGradSampleModule
+from opacus.grad_sample.gsm_base import (
+    AbstractGradSampleHooks,
+    AbstractGradSampleModule,
+)
 
 
-class GradSampleModuleNoOp(AbstractGradSampleModule):
+class GradSampleHooksNoOp(AbstractGradSampleHooks):
+    """
+    NoOp GradSampleHooks.
+    Only manages parameter attributes. The main goal of this class is to provide the same API for all modes.
+    """
+
+    def __init__(
+        self,
+        m: nn.Module,
+        *,
+        batch_first=True,
+        loss_reduction="mean",
+        strict: bool = True,
+    ):
+        if not batch_first:
+            raise NotImplementedError
+
+        super().__init__(
+            m,
+            batch_first=batch_first,
+            loss_reduction=loss_reduction,
+            strict=strict,
+        )
+
+    @classmethod
+    def validate(
+        cls, module: nn.Module, *, strict: bool = False
+    ) -> List[NotImplementedError]:
+        """
+        NoOp validation.
+        NoOp doesn't care about buffers or other things that usually interfere with
+        per-sample gradient computation.
+        """
+        return []
+
+
+class GradSampleModuleNoOp(GradSampleHooksNoOp, AbstractGradSampleModule):
     """
     NoOp GradSampleModule.
     Only wraps the module. The main goal of this class is to provide the same API for all methods.
@@ -31,15 +72,17 @@ class GradSampleModuleNoOp(AbstractGradSampleModule):
         *,
         batch_first=True,
         loss_reduction="mean",
+        strict: bool = True,
     ):
-        if not batch_first:
-            raise NotImplementedError
-
-        super().__init__(
+        nn.Module.__init__(self)
+        GradSampleHooksNoOp.__init__(
+            self,
             m,
             batch_first=batch_first,
             loss_reduction=loss_reduction,
+            strict=strict,
         )
+        self.grad_accumulation_hook = None
 
     def forward(self, x: torch.Tensor, *args, **kwargs):
         return self._module.forward(x, *args, **kwargs)

@@ -23,6 +23,7 @@ from .utils import (
     CustomLinearModule,
     LinearWithExtraParam,
     MatmulModule,
+    ModuleWithBuffer,
 )
 
 
@@ -90,21 +91,6 @@ class PrivacyEngineValidationTest(unittest.TestCase):
         except ImportError:
             print("Test not ran because functorch not imported")
 
-    def test_custom_linear_ew(self) -> None:
-        module, optim, dl = self._init(CustomLinearModule(5, 8), size=(16, 5))
-
-        module, optim, dl = self.privacy_engine.make_private(
-            module=module,
-            optimizer=optim,
-            data_loader=dl,
-            noise_multiplier=1.0,
-            max_grad_norm=1.0,
-            grad_sample_mode="ew",
-        )
-
-        for x in dl:
-            module(x)
-
     def test_unsupported_hooks(self) -> None:
         try:
             module, optim, dl = self._init(MatmulModule(5, 8), size=(16, 5))
@@ -120,26 +106,6 @@ class PrivacyEngineValidationTest(unittest.TestCase):
             self.assertTrue(hasattr(gsm._module, "ft_compute_sample_grad"))
         except ImportError:
             print("Test not ran because functorch not imported")
-
-    def test_unsupported_ew(self) -> None:
-        module, optim, dl = self._init(
-            MatmulModule(input_features=5, output_features=10),
-            size=(16, 5),
-            batch_size=12,
-        )
-
-        module, optim, dl = self.privacy_engine.make_private(
-            module=module,
-            optimizer=optim,
-            data_loader=dl,
-            noise_multiplier=1.0,
-            max_grad_norm=1.0,
-            grad_sample_mode="ew",
-        )
-
-        with self.assertRaises(RuntimeError):
-            for x in dl:
-                module(x)
 
     def test_extra_param_hooks_requires_grad(self) -> None:
         module, optim, dl = self._init(LinearWithExtraParam(5, 8), size=(16, 5))
@@ -172,20 +138,6 @@ class PrivacyEngineValidationTest(unittest.TestCase):
         for x in dl:
             module(x)
 
-    def test_extra_param_ew(self) -> None:
-        module, optim, dl = self._init(LinearWithExtraParam(5, 8), size=(16, 5))
-        module, optim, dl = self.privacy_engine.make_private(
-            module=module,
-            optimizer=optim,
-            data_loader=dl,
-            noise_multiplier=1.0,
-            max_grad_norm=1.0,
-            grad_sample_mode="ew",
-        )
-        with self.assertRaises(RuntimeError):
-            for x in dl:
-                module(x)
-
     def test_extra_param_disabled_ew(self) -> None:
         module, optim, dl = self._init(LinearWithExtraParam(5, 8), size=(16, 5))
         module.extra_param.requires_grad = False
@@ -201,3 +153,33 @@ class PrivacyEngineValidationTest(unittest.TestCase):
 
         for x in dl:
             module(x)
+
+    def test_noop_with_buffers(self) -> None:
+        module, optim, dl = self._init(ModuleWithBuffer(5, 8), size=(16, 5))
+
+        module, optim, dl = self.privacy_engine.make_private(
+            module=module,
+            optimizer=optim,
+            data_loader=dl,
+            noise_multiplier=1.0,
+            max_grad_norm=1.0,
+            grad_sample_mode="no_op",
+        )
+
+        for x in dl:
+            module(x)
+
+    def test_ew_with_buffers_fails(self) -> None:
+        module, optim, dl = self._init(ModuleWithBuffer(5, 8), size=(16, 5))
+
+        from opacus.validators.errors import UnsupportedModuleError
+
+        with self.assertRaises(UnsupportedModuleError):
+            self.privacy_engine.make_private(
+                module=module,
+                optimizer=optim,
+                data_loader=dl,
+                noise_multiplier=1.0,
+                max_grad_norm=1.0,
+                grad_sample_mode="ew",
+            )

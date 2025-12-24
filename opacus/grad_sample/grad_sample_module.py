@@ -98,17 +98,11 @@ class GradSampleHooks(AbstractGradSampleHooks):
         strict: bool = True,
         force_functorch=False,
     ):
-        errors = self.validate(module=m, strict=strict)
-        if errors and not strict:
-            logger.info(
-                f"GradSampleHooks found the following errors: {errors}."
-                "Using non-strict mode, continuing"
-            )
-
         super().__init__(
             m,
             batch_first=batch_first,
             loss_reduction=loss_reduction,
+            strict=strict,
         )
 
         self.hooks_enabled = False
@@ -207,14 +201,13 @@ class GradSampleHooks(AbstractGradSampleHooks):
                     handle.remove()
                 delattr(p, "ddp_hooks")
 
-        if not hasattr(self, "autograd_grad_sample_hooks"):
-            raise ValueError("Asked to remove hooks, but no hooks found")
-        else:
+        if hasattr(self, "autograd_grad_sample_hooks"):
             while self.autograd_grad_sample_hooks:
                 handle = self.autograd_grad_sample_hooks.pop()
                 handle.remove()
             delattr(self, "autograd_grad_sample_hooks")
-            delattr(self._module, "autograd_grad_sample_hooks")
+            if hasattr(self._module, "autograd_grad_sample_hooks"):
+                delattr(self._module, "autograd_grad_sample_hooks")
 
         # Remove functorch hooks
         for _module_name, module in trainable_modules(self._module):
@@ -414,47 +407,6 @@ class GradSampleHooks(AbstractGradSampleHooks):
         )
 
         return True
-
-    @classmethod
-    def validate(
-        cls, module: nn.Module, *, strict: bool = False
-    ) -> List[NotImplementedError]:
-        """
-        Check if per sample gradients can be fully computed for a given model
-
-        Args:
-            module: nn.Module to be checked
-            raise_if_error: Behaviour in case of a negative check result. Will
-            return the list of exceptions if set to ``False``, and throw otherwise
-
-        Returns:
-            Empty list of validation is successful.
-            List of validation errors  if ``raise_if_error=False`` and
-            unsupported modules are found
-
-        Raises:
-            NotImplementedError
-                If ``raise_if_error=True`` and unsupported modules are found
-        """
-        errors = []
-        errors.extend(
-            [
-                NotImplementedError(
-                    f"Model contains a trainable layer with buffers"
-                    f"that Opacus doesn't currently support({m_name}:{m}). "
-                )
-                for m_name, m in trainable_modules(module)
-                # With functorch, all modules are trainable
-                # We still want to avoid module that have buffers (e.g. BatchNorm)
-                # as the buffers are not private
-                if len(list(m.buffers())) > 0
-            ]
-        )
-        # raise or return errors as needed
-        if strict and len(errors) > 0:
-            raise NotImplementedError(errors)
-        else:
-            return errors
 
     def forbid_grad_accumulation(self):
         self.grad_accumulation_allowed = False

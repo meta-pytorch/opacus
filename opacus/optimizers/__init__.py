@@ -29,7 +29,7 @@ __all__ = [
     "DistributedDPOptimizer",
     "DPOptimizer",
     "DPOptimizerFastGradientClipping",
-    "DistributedDPOptimizerFastGradientlipping",
+    "DistributedDPOptimizerFastGradientClipping",
     "FSDPOptimizerFastGradientClipping",
     "DPPerLayerOptimizer",
     "SimpleDistributedPerLayerOptimizer",

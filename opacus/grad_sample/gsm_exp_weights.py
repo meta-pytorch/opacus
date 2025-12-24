@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import torch
 import torch.nn as nn
 from opacus.grad_sample.gsm_base import AbstractGradSampleModule
@@ -32,6 +33,7 @@ class GradSampleModuleExpandedWeights(AbstractGradSampleModule):
         *,
         batch_first=True,
         loss_reduction="mean",
+        strict: bool = True,
     ):
         if not batch_first:
             raise NotImplementedError
@@ -40,6 +42,7 @@ class GradSampleModuleExpandedWeights(AbstractGradSampleModule):
             m,
             batch_first=batch_first,
             loss_reduction=loss_reduction,
+            strict=strict,
         )
 
     def forward(self, x: torch.Tensor, *args, **kwargs):
