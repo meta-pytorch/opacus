@@ -144,21 +144,20 @@ See the [non-wrapping mode tutorial](../tutorials/non_wrapping_mode.ipynb) for a
 Please note that these are known limitations and we plan to improve Expanded Weights and bridge the gap in feature completeness
 
 
-| Feature                      | Hooks (Wrapped)                 | Expanded Weights | Functorch    |
-|:----------------------------:|:-------------------------------:|:----------------:|:------------:| 
-| Required PyTorch version     | 1.8+                            | 1.13+            | 1.12 (to be updated) |
-| Development status           | Underlying mechanism deprecated | Beta             | Beta         | 
-| **Model wrapping**           | **Yes (GradSampleModule)**      | **Yes**          | **Yes**      |
-| **Non-wrapping mode**        | **Supported (`wrap_model=False`)** | **Not supported** | **Supported (`wrap_model=False`)** |
-| Runtime Performance†          | baseline                       | ~25% faster  | 0-50% slower |
-| Any DP-allowed†† layers       | Not supported                   | Not supported   | Supported |
-| Most popular nn.* layers     | Supported                    | Supported    | Supported  | 
-| torchscripted models         | Not supported                   | Supported    | Not supported |
-| Client-provided grad sampler | Supported                    | Not supported   | Not needed |
-| `batch_first=False`          | Supported                    | Not supported   | Supported  |
-| Recurrent networks           | Supported                    | Not supported   | Supported  |
-| Padding `same` in Conv       | Supported                    | Not supported   | Supported  |
-| Empty poisson batches        | Supported                    | Not supported   | Not supported  |
+|           Feature            |         Hooks (Wrapped)         | Expanded Weights |           Functorch            |
+|:----------------------------:|:-------------------------------:|:----------------:|:------------------------------:| 
+|   Required PyTorch version   |              1.8+               |      1.13+       |      1.12 (to be updated)      |
+|      Development status      | Underlying mechanism deprecated |       Beta       |              Beta              | 
+|      Non-wrapping mode       | Supported (`wrap_model=False`)  |  Not supported   | Supported (`wrap_model=False`) |
+|     Runtime Performance†     |            baseline             |   ~25% faster    |          0-50% slower          |
+|   Any DP-allowed†† layers    |          Not supported          |  Not supported   |           Supported            |
+|   Most popular nn.* layers   |            Supported            |    Supported     |           Supported            | 
+|     torchscripted models     |          Not supported          |    Supported     |         Not supported          |
+| Client-provided grad sampler |            Supported            |  Not supported   |           Not needed           |
+|     `batch_first=False`      |            Supported            |  Not supported   |           Supported            |
+|      Recurrent networks      |            Supported            |  Not supported   |           Supported            |
+|    Padding `same` in Conv    |            Supported            |  Not supported   |           Supported            |
+|    Empty poisson batches     |            Supported            |  Not supported   |         Not supported          |
 
 † Note, that performance differences are unstable and can vary a lot depending on the exact model and batch size. 
 Numbers above are averaged over benchmarks with small models consisting of convolutional and linear layers. 

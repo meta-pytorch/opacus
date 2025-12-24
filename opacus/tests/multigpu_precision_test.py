@@ -20,6 +20,7 @@ import torch.multiprocessing as mp
 import torch.nn as nn
 from opacus import PrivacyEngine
 from opacus.distributed import DifferentiallyPrivateDistributedDataParallel as DPDDP
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from .mixed_precision_utils import (
     EmbeddingModel,
@@ -34,10 +35,11 @@ def _get_training_components(
     model_kwargs: dict[str, int],
     device: torch.device,
     grad_sample_mode: str,
+    wrap_model: bool = True,
 ):
     """
     Creates a model, optimizer, criterion, and dataloader for training.
-    The model is wrapped in DPDDP.
+    The model is wrapped in DPDDP or DDP.
     The optimizer, model, dataloader, and criterion are wrapped by the privacy engine.
     """
     input_dim = model_kwargs.get("input_dim", 4)
@@ -64,10 +66,13 @@ def _get_training_components(
 
     privacy_engine = PrivacyEngine()
 
-    model = DPDDP(model)
+    if wrap_model:
+        model = DPDDP(model)
+    else:
+        model = DDP(model, device_ids=[device.index])
 
     if grad_sample_mode in ["hooks", "functorch", "ew"]:
-        model, optimizer, dataloader = privacy_engine.make_private(
+        hooks_or_wrapper, optimizer, dataloader = privacy_engine.make_private(
             module=model,
             optimizer=optimizer,
             data_loader=dataloader,
@@ -75,18 +80,25 @@ def _get_training_components(
             max_grad_norm=1,
             grad_sample_mode=grad_sample_mode,
             poisson_sampling=False,
+            wrap_model=wrap_model,
         )
     elif grad_sample_mode == "ghost":
-        model, optimizer, criterion, dataloader = privacy_engine.make_private(
-            module=model,
-            optimizer=optimizer,
-            data_loader=dataloader,
-            criterion=criterion,
-            max_grad_norm=1,
-            noise_multiplier=1,
-            grad_sample_mode="ghost",
-            poisson_sampling=False,
+        hooks_or_wrapper, optimizer, criterion, dataloader = (
+            privacy_engine.make_private(
+                module=model,
+                optimizer=optimizer,
+                data_loader=dataloader,
+                criterion=criterion,
+                max_grad_norm=1,
+                noise_multiplier=1,
+                grad_sample_mode="ghost",
+                poisson_sampling=False,
+                wrap_model=wrap_model,
+            )
         )
+
+    if wrap_model:
+        model = hooks_or_wrapper
 
     return model, optimizer, criterion, dataloader
 
@@ -98,6 +110,7 @@ def run_mixed_precision_test(
     model_kwargs: dict[str, int],
     dtype: torch.dtype,
     grad_sample_mode: str,
+    wrap_model: bool = True,
 ):
     """
     Runs an integration test for distributed training with DPDDP and mixed precision training.
@@ -113,13 +126,15 @@ def run_mixed_precision_test(
         model_class (nn.Module): The neural network model to be trained.
         model_kwargs (dict): The keyword arguments for the model.
         dtype (torch.dtype): The data type for low precision training (torch.float16 or torch.bfloat16).
+        grad_sample_mode (str): The mode for per-sample gradient computation.
+        wrap_model (bool): Whether to wrap the model or use hooks.
     """
 
     setup(rank, world_size)
     device = torch.device(f"cuda:{rank}")
 
     model, optimizer, criterion, dataloader = _get_training_components(
-        model_class, model_kwargs, device, grad_sample_mode
+        model_class, model_kwargs, device, grad_sample_mode, wrap_model=wrap_model
     )
 
     # Model weights should be in high precision (fp32)
@@ -144,7 +159,11 @@ def run_mixed_precision_test(
             if p.grad is not None:
                 assert p.grad.dtype == torch.float32
             if p.grad_sample is not None:
-                assert p.grad_sample.dtype in [torch.float32, dtype]
+                if isinstance(p.grad_sample, list):
+                    for gs in p.grad_sample:
+                        assert gs.dtype in [torch.float32, dtype]
+                else:
+                    assert p.grad_sample.dtype in [torch.float32, dtype]
             if grad_sample_mode == "ghost" and p._norm_sample is not None:
                 assert p._norm_sample.dtype in [torch.float32, dtype]
 
@@ -160,6 +179,7 @@ def run_low_precision_test(
     model_kwargs: dict[str, int],
     dtype: torch.dtype,
     grad_sample_mode: str,
+    wrap_model: bool = True,
 ):
     """
     Runs an integration test for distributed training with DPDDP and low precision training.
@@ -171,13 +191,14 @@ def run_low_precision_test(
         model_class (nn.Module): The neural network model to be trained.
         model_kwargs (dict): The keyword arguments for the model.
         dtype (torch.dtype): The data type for low precision training (torch.float16 or torch.bfloat16).
-        grad_sample_mode (str): The mode for per-sample gradient computation, options include "hooks", "functorch
+        grad_sample_mode (str): The mode for per-sample gradient computation.
+        wrap_model (bool): Whether to wrap the model or use hooks.
     """
     setup(rank, world_size)
     device = torch.device(f"cuda:{rank}")
 
     model, optimizer, criterion, dataloader = _get_training_components(
-        model_class, model_kwargs, device, grad_sample_mode
+        model_class, model_kwargs, device, grad_sample_mode, wrap_model=wrap_model
     )
 
     # Model weights should be in low precision
@@ -202,7 +223,11 @@ def run_low_precision_test(
             if p.grad is not None:
                 assert p.grad.dtype == dtype
             if p.grad_sample is not None:
-                assert p.grad_sample.dtype == dtype
+                if isinstance(p.grad_sample, list):
+                    for gs in p.grad_sample:
+                        assert gs.dtype == dtype
+                else:
+                    assert p.grad_sample.dtype == dtype
             if grad_sample_mode == "ghost" and p._norm_sample is not None:
                 assert p._norm_sample.dtype == dtype
 
@@ -251,36 +276,54 @@ class MultiGPUPrecisionTest(unittest.TestCase):
             world_size = 2
             # test low precision training
             for grad_sample_mode in ["ew", "functorch", "hooks", "ghost"]:
-                # "ew" is not supported for EmbeddingModel
-                if grad_sample_mode == "ew" and model_class == EmbeddingModel:
-                    continue
-                mp.spawn(
-                    run_low_precision_test,
-                    args=(
-                        world_size,
-                        model_class,
-                        model_kwargs,
-                        dtype,
-                        grad_sample_mode,
-                    ),
-                    nprocs=world_size,
-                    join=True,
-                )
+                for wrap_model in [True, False]:
+                    # "ew" is not supported for EmbeddingModel or wrap_model=False
+                    if grad_sample_mode == "ew" and (
+                        model_class == EmbeddingModel or not wrap_model
+                    ):
+                        continue
+                    with self.subTest(
+                        model_class=model_class,
+                        grad_sample_mode=grad_sample_mode,
+                        wrap_model=wrap_model,
+                        precision="low",
+                    ):
+                        mp.spawn(
+                            run_low_precision_test,
+                            args=(
+                                world_size,
+                                model_class,
+                                model_kwargs,
+                                dtype,
+                                grad_sample_mode,
+                                wrap_model,
+                            ),
+                            nprocs=world_size,
+                            join=True,
+                        )
 
             # test mixed precision training
             for grad_sample_mode in ["functorch", "hooks", "ghost"]:
-                mp.spawn(
-                    run_mixed_precision_test,
-                    args=(
-                        world_size,
-                        model_class,
-                        model_kwargs,
-                        dtype,
-                        grad_sample_mode,
-                    ),
-                    nprocs=world_size,
-                    join=True,
-                )
+                for wrap_model in [True, False]:
+                    with self.subTest(
+                        model_class=model_class,
+                        grad_sample_mode=grad_sample_mode,
+                        wrap_model=wrap_model,
+                        precision="mixed",
+                    ):
+                        mp.spawn(
+                            run_mixed_precision_test,
+                            args=(
+                                world_size,
+                                model_class,
+                                model_kwargs,
+                                dtype,
+                                grad_sample_mode,
+                                wrap_model,
+                            ),
+                            nprocs=world_size,
+                            join=True,
+                        )
 
 
 if __name__ == "__main__":

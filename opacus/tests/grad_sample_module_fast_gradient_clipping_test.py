@@ -23,7 +23,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from hypothesis import given, settings
-from opacus.grad_sample import GradSampleModule, GradSampleModuleFastGradientClipping
+from opacus.grad_sample import (
+    GradSampleHooksFastGradientClipping,
+    GradSampleModule,
+    GradSampleModuleFastGradientClipping,
+)
 from opacus.optimizers import DPOptimizer, DPOptimizerFastGradientClipping
 from opacus.utils.fast_gradient_clipping_utils import (
     DPLossFastGradientClipping,
@@ -446,31 +450,36 @@ class GradSampleModuleFastGradientClippingEmbeddingLayerTest(unittest.TestCase):
                 x = x.to(device2)
                 return self.fc2(x)
 
-        model = MultiDeviceModel()
-        grad_sample_module = GradSampleModuleFastGradientClipping(
-            model, max_grad_norm=1.0, use_ghost_clipping=False
-        )
+        for cls in [
+            GradSampleModuleFastGradientClipping,
+            GradSampleHooksFastGradientClipping,
+        ]:
+            model = MultiDeviceModel()
+            grad_sample_module = cls(model, max_grad_norm=1.0, use_ghost_clipping=False)
 
-        # Simulate _norm_sample on different devices
-        batch_size = 4
-        for param in grad_sample_module.trainable_parameters:
-            param._norm_sample = torch.randn(batch_size, device=param.device)
+            # Simulate _norm_sample on different devices
+            batch_size = 4
+            for param in grad_sample_module.trainable_parameters:
+                param._norm_sample = torch.randn(batch_size, device=param.device)
 
-        # This should not raise any device mismatch errors
-        try:
-            norm_sample = grad_sample_module.get_norm_sample()
-            success = True
-        except RuntimeError as e:
-            if "Expected all tensors to be on the same device" in str(e):
-                success = False
-                self.fail(f"Device mismatch error in get_norm_sample: {e}")
-            else:
-                raise
+            # This should not raise any device mismatch errors
+            try:
+                norm_sample = grad_sample_module.get_norm_sample()
+                success = True
+            except RuntimeError as e:
+                if "Expected all tensors to be on the same device" in str(e):
+                    success = False
+                    self.fail(
+                        f"Device mismatch error in get_norm_sample for {cls}: {e}"
+                    )
+                else:
+                    raise
 
-        self.assertTrue(
-            success, "get_norm_sample should handle multi-device parameters"
-        )
-        self.assertEqual(norm_sample.shape[0], batch_size)
+            self.assertTrue(
+                success,
+                f"get_norm_sample should handle multi-device parameters for {cls}",
+            )
+            self.assertEqual(norm_sample.shape[0], batch_size)
 
     @unittest.skipIf(torch.cuda.device_count() < 2, "Need at least 2 GPUs")
     def test_multidevice_get_clipping_coef(self):
@@ -491,35 +500,42 @@ class GradSampleModuleFastGradientClippingEmbeddingLayerTest(unittest.TestCase):
                 x = x.to(device2)
                 return self.fc2(x)
 
-        model = MultiDeviceModel()
-        max_grad_norm = 1.0
-        grad_sample_module = GradSampleModuleFastGradientClipping(
-            model, max_grad_norm=max_grad_norm, use_ghost_clipping=False
-        )
+        for cls in [
+            GradSampleModuleFastGradientClipping,
+            GradSampleHooksFastGradientClipping,
+        ]:
+            model = MultiDeviceModel()
+            max_grad_norm = 1.0
+            grad_sample_module = cls(
+                model, max_grad_norm=max_grad_norm, use_ghost_clipping=False
+            )
 
-        # Simulate _norm_sample on different devices
-        batch_size = 4
-        for param in grad_sample_module.trainable_parameters:
-            # Create norms with values that will require clipping
-            param._norm_sample = torch.ones(batch_size, device=param.device) * 2.0
+            # Simulate _norm_sample on different devices
+            batch_size = 4
+            for param in grad_sample_module.trainable_parameters:
+                # Create norms with values that will require clipping
+                param._norm_sample = torch.ones(batch_size, device=param.device) * 2.0
 
-        # This should not raise any device mismatch errors
-        try:
-            clipping_coef = grad_sample_module.get_clipping_coef()
-            success = True
-        except RuntimeError as e:
-            if "Expected all tensors to be on the same device" in str(e):
-                success = False
-                self.fail(f"Device mismatch error in get_clipping_coef: {e}")
-            else:
-                raise
+            # This should not raise any device mismatch errors
+            try:
+                clipping_coef = grad_sample_module.get_clipping_coef()
+                success = True
+            except RuntimeError as e:
+                if "Expected all tensors to be on the same device" in str(e):
+                    success = False
+                    self.fail(
+                        f"Device mismatch error in get_clipping_coef for {cls}: {e}"
+                    )
+                else:
+                    raise
 
-        self.assertTrue(
-            success, "get_clipping_coef should handle multi-device parameters"
-        )
-        self.assertEqual(clipping_coef.shape[0], batch_size)
-        # Verify clipping coefficients are correct
-        self.assertTrue(torch.all(clipping_coef <= 1.0))
+            self.assertTrue(
+                success,
+                f"get_clipping_coef should handle multi-device parameters for {cls}",
+            )
+            self.assertEqual(clipping_coef.shape[0], batch_size)
+            # Verify clipping coefficients are correct
+            self.assertTrue(torch.all(clipping_coef <= 1.0))
 
 
 class DPTensorArithmeticTest(unittest.TestCase):
