@@ -222,7 +222,6 @@ class GradSampleHooksFastGradientClipping(GradSampleHooks):
                         grad_sample=p.grad_sample,
                         max_batch_len=module.max_batch_len,
                     )
-                    p.grad_sample = None
         if len(module.activations) == 0:
             if hasattr(module, "max_batch_len"):
                 del module.max_batch_len

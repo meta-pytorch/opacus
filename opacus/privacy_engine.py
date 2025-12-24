@@ -24,13 +24,15 @@ from opacus.data_loader import DPDataLoader, switch_generator
 from opacus.distributed import DifferentiallyPrivateDistributedDataParallel as DPDDP
 from opacus.grad_sample import (
     AbstractGradSampleModule,
+    GradSampleHooks,
     GradSampleModule,
     get_gsm_class,
-    wrap_model,
 )
+from opacus.grad_sample import wrap_model as wrap_model_fn
 from opacus.optimizers import DPOptimizer, get_optimizer_class
 from opacus.schedulers import _GradClipScheduler, _NoiseScheduler
 from opacus.utils.fast_gradient_clipping_utils import DPLossFastGradientClipping
+from opacus.validators.errors import UnsupportedModuleError
 from opacus.validators.module_validator import ModuleValidator
 from torch import nn, optim
 from torch.distributed._composable.fsdp import FSDPModule
@@ -176,42 +178,59 @@ class PrivacyEngine:
         max_grad_norm: Union[float, List[float]] = 1.0,
         loss_reduction: str = "mean",
         grad_sample_mode: str = "hooks",
-    ) -> AbstractGradSampleModule:
-        # Ideally, validation should have been taken care of by calling
-        # `get_compatible_module()`
-        self.validate(module=module, optimizer=None, data_loader=None)
+        strict: bool = True,
+        wrap_model: bool = True,
+    ) -> Union[AbstractGradSampleModule, GradSampleHooks]:
+        """
+        Prepares a model for differentially private training.
 
-        # wrap
-        if isinstance(module, AbstractGradSampleModule):
-            if (
-                module.batch_first != batch_first
-                or module.loss_reduction != loss_reduction
-                or type(module) is not get_gsm_class(grad_sample_mode)
-            ):
-                raise ValueError(
-                    f"Pre-existing GradSampleModule doesn't match new arguments."
-                    f"Got: module.batch_first: {module.batch_first}, module.loss_reduction: {module.loss_reduction}, type(module): {type(module)}"
-                    f"Requested: batch_first:{batch_first}, loss_reduction: {loss_reduction}, grad_sample_mode: {grad_sample_mode} "
-                    f"Please pass vanilla nn.Module instead"
-                )
+        Args:
+            module: PyTorch module to be prepared
+            batch_first: Flag to indicate if input has batch dimension first
+            max_grad_norm: Maximum gradient norm for clipping (required for ghost clipping)
+            loss_reduction: Loss reduction method ("mean" or "sum")
+            grad_sample_mode: Mode for computing per-sample gradients
+            strict: If True, validates module strictly
+            wrap_model: If True (default), wraps module in GradSampleModule.
+                If False, uses non-wrapping mode - hooks attached directly to model.
 
-            return module
-        else:
-            if grad_sample_mode in ["ghost", "ghost_fsdp"]:
-                return wrap_model(
-                    module,
-                    grad_sample_mode=grad_sample_mode,
-                    batch_first=batch_first,
-                    loss_reduction=loss_reduction,
-                    max_grad_norm=max_grad_norm,
-                )
-            else:
-                return wrap_model(
-                    module,
-                    grad_sample_mode=grad_sample_mode,
-                    batch_first=batch_first,
-                    loss_reduction=loss_reduction,
-                )
+        Returns:
+            Either GradSampleModule wrapper (if wrap_model=True) or
+            GradSampleHooks instance (if wrap_model=False).
+        """
+        if wrap_model:
+            # Check if already wrapped
+            if isinstance(module, AbstractGradSampleModule):
+                if (
+                    module.batch_first != batch_first
+                    or module.loss_reduction != loss_reduction
+                    or type(module) is not get_gsm_class(grad_sample_mode)
+                ):
+                    raise ValueError(
+                        f"Pre-existing GradSampleModule doesn't match new arguments. "
+                        f"Got: module.batch_first: {module.batch_first}, module.loss_reduction: {module.loss_reduction}, type(module): {type(module)} "
+                        f"Requested: batch_first:{batch_first}, loss_reduction: {loss_reduction}, grad_sample_mode: {grad_sample_mode} "
+                        f"Please pass vanilla nn.Module instead"
+                    )
+
+                return module
+
+        # Prepare kwargs for wrapping/hooks
+        full_kwargs = {
+            "batch_first": batch_first,
+            "loss_reduction": loss_reduction,
+            "strict": strict,
+        }
+
+        if grad_sample_mode in ["ghost", "ghost_fsdp", "ghost_tp"]:
+            full_kwargs["max_grad_norm"] = max_grad_norm
+
+        return wrap_model_fn(
+            module,
+            grad_sample_mode=grad_sample_mode,
+            wrap_model=wrap_model,
+            **full_kwargs,
+        )
 
     def _prepare_criterion(
         self,
@@ -220,7 +239,6 @@ class PrivacyEngine:
         optimizer: DPOptimizer,
         criterion=nn.CrossEntropyLoss(),
         loss_reduction: str = "mean",
-        **kwargs,
     ) -> DPLossFastGradientClipping:
         """
         Args:
@@ -237,8 +255,8 @@ class PrivacyEngine:
         self,
         *,
         module: nn.Module,
-        optimizer: Optional[optim.Optimizer],
-        data_loader: Optional[DataLoader],
+        optimizer: Optional[optim.Optimizer] = None,
+        data_loader: Optional[DataLoader] = None,
     ) -> bool:
         """
         Check if task components are compatible with DP.
@@ -251,14 +269,19 @@ class PrivacyEngine:
         Returns:
             ``True`` if compatible, ``False`` otherwise
         """
-        return ModuleValidator.is_valid(module)
+        try:
+            self.validate(module=module, optimizer=optimizer, data_loader=data_loader)
+            return True
+        except (UnsupportedModuleError, ValueError):
+            return False
 
     def validate(
         self,
         *,
         module: nn.Module,
-        optimizer: Optional[optim.Optimizer],
-        data_loader: Optional[DataLoader],
+        optimizer: Optional[optim.Optimizer] = None,
+        data_loader: Optional[DataLoader] = None,
+        noise_generator: Optional[torch.Generator] = None,
     ):
         """
         Validate that task components are compatible with DP.
@@ -268,12 +291,32 @@ class PrivacyEngine:
             module: module to be checked
             optimizer: optimizer to be checked
             data_loader: data_loader to be checked
+            noise_generator: noise_generator to be checked
 
         Raises:
             UnsupportedModuleError
                 If one or more modules found to be incompatible
+            ValueError
+                If optimizer or data_loader are incompatible
         """
+        if noise_generator and self.secure_mode:
+            raise ValueError("Passing seed is prohibited in secure mode")
+
         ModuleValidator.validate(module, strict=True)
+
+        if optimizer is not None:
+            model_parameters = set(module.parameters())
+            for p in chain.from_iterable(
+                [param_group["params"] for param_group in optimizer.param_groups]
+            ):
+                if p not in model_parameters:
+                    raise ValueError(
+                        "Module parameters are different than optimizer Parameters"
+                    )
+
+        if data_loader is not None:
+            if hasattr(data_loader, "dataset") and data_loader.dataset is None:
+                raise ValueError("Data loader must have a dataset")
 
     @classmethod
     def get_compatible_module(cls, module: nn.Module) -> nn.Module:
@@ -309,10 +352,18 @@ class PrivacyEngine:
         clipping: str = "flat",
         noise_generator=None,
         grad_sample_mode: str = "hooks",
+        wrap_model: bool = True,
         **kwargs,
     ) -> Union[
-        Tuple[GradSampleModule, DPOptimizer, DataLoader],
-        Tuple[GradSampleModule, DPOptimizer, DPLossFastGradientClipping, DataLoader],
+        Tuple[
+            Union[AbstractGradSampleModule, GradSampleHooks], DPOptimizer, DataLoader
+        ],
+        Tuple[
+            Union[AbstractGradSampleModule, GradSampleHooks],
+            DPOptimizer,
+            DPLossFastGradientClipping,
+            DataLoader,
+        ],
     ]:
         """
         Add privacy-related responsibilities to the main PyTorch training objects:
@@ -376,18 +427,12 @@ class PrivacyEngine:
                 equivalent to the original data loader, possibly with updated
                 sampling mechanism. Points to the same dataset object.
         """
-        if noise_generator and self.secure_mode:
-            raise ValueError("Passing seed is prohibited in secure mode")
-
-        # compare module parameter with optimizer parameters
-        model_parameters = set(module.parameters())
-        for p in chain.from_iterable(
-            [param_group["params"] for param_group in optimizer.param_groups]
-        ):
-            if p not in model_parameters:
-                raise ValueError(
-                    "Module parameters are different than optimizer Parameters"
-                )
+        self.validate(
+            module=module,
+            optimizer=optimizer,
+            data_loader=data_loader,
+            noise_generator=noise_generator,
+        )
 
         distributed = isinstance(module, (DPDDP, DDP, FSDPModule))
 
@@ -397,6 +442,7 @@ class PrivacyEngine:
             max_grad_norm=max_grad_norm,
             loss_reduction=loss_reduction,
             grad_sample_mode=grad_sample_mode,
+            wrap_model=wrap_model,
         )
         if poisson_sampling:
             module.forbid_grad_accumulation()
@@ -435,7 +481,6 @@ class PrivacyEngine:
                 optimizer=optimizer,
                 criterion=criterion,
                 loss_reduction=loss_reduction,
-                **kwargs,
             )
 
             return module, optimizer, criterion, data_loader
@@ -459,10 +504,18 @@ class PrivacyEngine:
         clipping: str = "flat",
         noise_generator=None,
         grad_sample_mode: str = "hooks",
+        wrap_model: bool = True,
         **kwargs,
     ) -> Union[
-        Tuple[GradSampleModule, DPOptimizer, DataLoader],
-        Tuple[GradSampleModule, DPOptimizer, DPLossFastGradientClipping, DataLoader],
+        Tuple[
+            Union[AbstractGradSampleModule, GradSampleHooks], DPOptimizer, DataLoader
+        ],
+        Tuple[
+            Union[AbstractGradSampleModule, GradSampleHooks],
+            DPOptimizer,
+            DPLossFastGradientClipping,
+            DataLoader,
+        ],
     ]:
         """
         Version of :meth:`~opacus.privacy_engine.PrivacyEngine.make_private`,
@@ -505,12 +558,23 @@ class PrivacyEngine:
                 implementation class for the wrapped ``module``. See
                 :class:`~opacus.grad_sample.gsm_base.AbstractGradSampleModule` for more
                 details
+            wrap_model: If True (default), wraps module in GradSampleModule.
+                If False, uses non-wrapping mode - attaches hooks directly to the provided model
+                without wrapping. The original model remains unchanged and can be used normally.
+                Cleanup via returned hooks.cleanup() is required when done. Recommended for
+                HuggingFace Transformers and models with custom __getattr__ that don't work well with wrapping.
 
         Returns:
-            Tuple of (model, optimizer, data_loader) or (model, optimizer, criterion, data_loader).
+            Tuple of (hooks, optimizer, data_loader) or (hooks, optimizer, criterion, data_loader).
 
-            Model is a wrapper around the original model that also computes per sample
-                gradients
+            Returns a hooks object for gradient sampling and cleanup:
+            - If wrap_model=True: Returns GradSampleModule wrapper (use as your model)
+            - If wrap_model=False: Returns GradSampleHooks object (use your original model directly,
+              use returned hooks only for cleanup)
+
+            The hooks object provides .cleanup() method. In non-wrapping mode, the original model
+            passed to make_private() is unchanged - continue using it normally.
+
             Optimizer is a wrapper around the original optimizer that also does
                 gradient clipping and noise addition to the gradients
             Criterion is a wrapper around the original criterion that packages the two backward passes for fast gradient clipping.
@@ -548,6 +612,7 @@ class PrivacyEngine:
             grad_sample_mode=grad_sample_mode,
             poisson_sampling=poisson_sampling,
             clipping=clipping,
+            wrap_model=wrap_model,
             **kwargs,
         )
 
@@ -567,7 +632,7 @@ class PrivacyEngine:
         self,
         *,
         path: Union[str, os.PathLike, BinaryIO, IO[bytes]],
-        module: GradSampleModule,
+        module: Union[nn.Module, GradSampleModule],
         optimizer: Optional[DPOptimizer] = None,
         noise_scheduler: Optional[_NoiseScheduler] = None,
         grad_clip_scheduler: Optional[_GradClipScheduler] = None,
@@ -577,9 +642,10 @@ class PrivacyEngine:
     ):
         """
         Saves the state_dict of module, optimizer, and accountant at path.
+
         Args:
             path: Path to save the state dict objects.
-            module: GradSampleModule to save; wrapped module's state_dict is saved.
+            module: nn.Module or GradSampleModule to save; wrapped module's state_dict is saved.
             optimizer: DPOptimizer to save; wrapped optimizer's state_dict is saved.
             noise_scheduler: _NoiseScheduler whose state we should save.
             grad_clip_scheduler: _GradClipScheduler whose state we should save.
@@ -608,7 +674,7 @@ class PrivacyEngine:
         self,
         *,
         path: Union[str, os.PathLike, BinaryIO, IO[bytes]],
-        module: GradSampleModule,
+        module: Union[nn.Module, GradSampleModule],
         optimizer: Optional[DPOptimizer] = None,
         noise_scheduler: Optional[_NoiseScheduler] = None,
         grad_clip_scheduler: Optional[_GradClipScheduler] = None,
