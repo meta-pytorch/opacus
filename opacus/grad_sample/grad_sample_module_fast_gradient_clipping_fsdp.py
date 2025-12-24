@@ -34,9 +34,10 @@ logger.disabled = True
 
 class GradSampleHooksFastGradientClippingFSDP(GradSampleHooksFastGradientClipping):
     """
-    Hooks-based implementation of GradSampleModule with Fast Gradient and Ghost Clipping and FSDP support
+    Hooks-based implementation for Fast Gradient and Ghost Clipping with FSDP support.
 
-    Computes norms of gradients without gradient instantiation
+    Computes norms of gradients without gradient instantiation.
+    Attaches to the model without wrapping it in an nn.Module.
     """
 
     def __init__(
@@ -51,7 +52,7 @@ class GradSampleHooksFastGradientClippingFSDP(GradSampleHooksFastGradientClippin
         """
 
         Args:
-            m: nn.Module to be wrapped
+            m: nn.Module to be attached to
             batch_first: Flag to indicate if the input tensor to the corresponding module
                 has the first dimension representing the batch. If set to True, dimensions on
                 input tensor are expected be ``[batch_size, ...]``, otherwise

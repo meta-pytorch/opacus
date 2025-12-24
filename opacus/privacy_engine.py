@@ -415,10 +415,16 @@ class PrivacyEngine:
                 details
 
         Returns:
-            Tuple of  (model, optimizer, data_loader) or (model, optimizer, criterion, data_loader).
+            Tuple of (hooks, optimizer, data_loader) or (hooks, optimizer, criterion, data_loader).
 
-            Model is a wrapper around the original model that also computes per sample
-                gradients
+            Returns a hooks object for gradient sampling and cleanup:
+            - If wrap_model=True: Returns GradSampleModule wrapper (use as your model)
+            - If wrap_model=False: Returns GradSampleHooks object (use your original model directly,
+              use returned hooks only for cleanup)
+
+            The hooks object provides .cleanup() method. In non-wrapping mode, the original model
+            passed to make_private() is unchanged - continue using it normally.
+
             Optimizer is a wrapper around the original optimizer that also does
              gradient clipping and noise addition to the gradients
             Criterion is a wrapper around the original criterion that packages the two backward passes for fast gradient clipping.

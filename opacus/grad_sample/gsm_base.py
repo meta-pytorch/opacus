@@ -38,7 +38,7 @@ class AbstractGradSampleHooks(ABC):
     Abstract base class for hooks-based grad sample computation.
 
     This class provides the interface for managing gradient sample attributes
-    and hooks without inheriting from nn.Module. Extends the internal nn.Module
+    and hooks without inheriting from nn.Module. Attaches to an internal nn.Module
     so that its parameter tensors have an extra field called .grad_sample.
     """
 
@@ -51,12 +51,22 @@ class AbstractGradSampleHooks(ABC):
         strict: bool = True,
     ):
         """
+
         Args:
-            m: nn.Module to attach hooks to
-            batch_first: Flag to indicate if the input tensor has batch as first dimension
-            loss_reduction: Indicates if the loss reduction is "sum" or "mean"
+            m: nn.Module to be attached to
+            batch_first: Flag to indicate if the input tensor to the corresponding module
+                has the first dimension representing the batch. If set to True, dimensions on
+                input tensor are expected be ``[batch_size, ...]``, otherwise
+                ``[K, batch_size, ...]``
+            loss_reduction: Indicates if the loss reduction (for aggregating the gradients)
+                is a sum or a mean operation. Can take values "sum" or "mean"
             strict: If set to ``True``, the input module will be validated to make sure that none of its submodules includes buffers,
                 which is not currently supported by Opacus.
+
+        Raises:
+            NotImplementedError
+                If ``strict`` is set to ``True`` and module ``m`` (or any of its
+                submodules) doesn't have a registered grad sampler function.
         """
         self._module = m
         self.batch_first = batch_first

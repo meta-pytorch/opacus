@@ -35,6 +35,19 @@ class GradSampleModuleExpandedWeights(AbstractGradSampleModule):
         loss_reduction="mean",
         strict: bool = True,
     ):
+        """
+
+        Args:
+            m: nn.Module to be wrapped
+            batch_first: Flag to indicate if the input tensor to the corresponding module
+                has the first dimension representing the batch. If set to True, dimensions on
+                input tensor are expected be ``[batch_size, ...]``, otherwise
+                ``[K, batch_size, ...]``
+            loss_reduction: Indicates if the loss reduction (for aggregating the gradients)
+                is a sum or a mean operation. Can take values "sum" or "mean"
+            strict: If set to ``True``, the input module will be validated to make sure that none of its submodules includes buffers,
+                which is not currently supported by Opacus.
+        """
         if not batch_first:
             raise NotImplementedError
 
