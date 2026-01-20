@@ -59,14 +59,11 @@ class ModuleValidator:
                 IllegalModuleConfigurationError("Model needs to be in training mode")
             )
         # 2. perform module specific validations for trainable modules.
-        for m_name, sub_module in trainable_modules(module):
+        # TODO: use module name here - it's useful part of error message
+        for _, sub_module in trainable_modules(module):
             if type(sub_module) in ModuleValidator.VALIDATORS:
                 sub_module_validator = ModuleValidator.VALIDATORS[type(sub_module)]
-                new_errors = sub_module_validator(sub_module)
-                for e in new_errors:
-                    if m_name:
-                        e.args = (f"Module {m_name}: {e.args[0]}",) + e.args[1:]
-                errors.extend(new_errors)
+                errors.extend(sub_module_validator(sub_module))
         # raise/return as needed
         if strict and len(errors) > 0:
             raise UnsupportedModuleError(errors)

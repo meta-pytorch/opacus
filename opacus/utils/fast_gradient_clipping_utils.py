@@ -13,7 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Union
+
 import torch
+from opacus.grad_sample import (
+    GradSampleHooksFastGradientClipping,
+    GradSampleModuleFastGradientClipping,
+)
 from opacus.optimizers import DPOptimizerFastGradientClipping
 
 
@@ -24,14 +30,16 @@ class DPTensorFastGradientClipping:
 
     def __init__(
         self,
-        module,  # Union[GradSampleModuleFastGradientClipping, GradSampleHooksFastGradientClipping]
+        module: Union[
+            GradSampleModuleFastGradientClipping, GradSampleHooksFastGradientClipping
+        ],
         optimizer: DPOptimizerFastGradientClipping,
         loss_per_sample: torch.Tensor,
         loss_reduction: str = "mean",
     ):
         """
         Args:
-            module: the module or hooks to train (GradSampleModuleFastGradientClipping or GradSampleHooksFastGradientClipping)
+            module: the module or hooks to train
             optimizer: the optimizer used to train the module
             loss_per_sample: loss on each sample in the mini-batch of size [batch_size, 1]
         """
@@ -41,132 +49,10 @@ class DPTensorFastGradientClipping:
         self.loss_reduction = loss_reduction
 
     def item(self):
-        return self.detach().item()
-
-    def detach(self):
         if self.loss_reduction == "mean":
-            return torch.mean(self.loss_per_sample).detach()
+            return torch.mean(self.loss_per_sample).detach().item()
         elif self.loss_reduction == "sum":
-            return torch.sum(self.loss_per_sample).detach()
-
-    def __truediv__(self, other):
-        """
-        Division operation for DPTensorFastGradientClipping.
-        Enables: loss / scalar
-        """
-        return DPTensorFastGradientClipping(
-            self.module,
-            self.optimizer,
-            self.loss_per_sample / other,
-            self.loss_reduction,
-        )
-
-    def __mul__(self, other):
-        """
-        Multiplication operation for DPTensorFastGradientClipping.
-        Enables: loss * scalar or scalar * loss
-        """
-        return DPTensorFastGradientClipping(
-            self.module,
-            self.optimizer,
-            self.loss_per_sample * other,
-            self.loss_reduction,
-        )
-
-    def __rmul__(self, other):
-        """
-        Left multiplication by a scalar.
-        Required to support loss weighting: weight * loss
-        """
-        return self.__mul__(other)
-
-    def __add__(self, other):
-        """
-        Addition operation for DPTensorFastGradientClipping.
-        Enables: loss + scalar or loss + loss.
-        Required to support combining multiple losses in a single training step.
-        """
-        if isinstance(other, DPTensorFastGradientClipping):
-            if self.loss_reduction != other.loss_reduction:
-                raise ValueError(
-                    f"Cannot add losses with different reductions: {self.loss_reduction} vs {other.loss_reduction}"
-                )
-            return DPTensorFastGradientClipping(
-                self.module,
-                self.optimizer,
-                self.loss_per_sample + other.loss_per_sample,
-                self.loss_reduction,
-            )
-        else:
-            return DPTensorFastGradientClipping(
-                self.module,
-                self.optimizer,
-                self.loss_per_sample + other,
-                self.loss_reduction,
-            )
-
-    def __radd__(self, other):
-        """
-        Right addition operation for DPTensorFastGradientClipping.
-        Enables: scalar + loss
-        """
-        return self.__add__(other)
-
-    def __sub__(self, other):
-        """
-        Subtraction operation for DPTensorFastGradientClipping.
-        Enables: loss - scalar or loss - loss
-        """
-        if isinstance(other, DPTensorFastGradientClipping):
-            if self.loss_reduction != other.loss_reduction:
-                raise ValueError(
-                    f"Cannot subtract losses with different reductions: {self.loss_reduction} vs {other.loss_reduction}"
-                )
-            return DPTensorFastGradientClipping(
-                self.module,
-                self.optimizer,
-                self.loss_per_sample - other.loss_per_sample,
-                self.loss_reduction,
-            )
-        else:
-            return DPTensorFastGradientClipping(
-                self.module,
-                self.optimizer,
-                self.loss_per_sample - other,
-                self.loss_reduction,
-            )
-
-    def __rsub__(self, other):
-        """
-        Right subtraction operation for DPTensorFastGradientClipping.
-        Enables: scalar - loss
-        """
-        return DPTensorFastGradientClipping(
-            self.module,
-            self.optimizer,
-            other - self.loss_per_sample,
-            self.loss_reduction,
-        )
-
-    def __neg__(self):
-        """
-        Negation operation for DPTensorFastGradientClipping.
-        Enables: -loss
-        """
-        return DPTensorFastGradientClipping(
-            self.module,
-            self.optimizer,
-            -self.loss_per_sample,
-            self.loss_reduction,
-        )
-
-    def __repr__(self):
-        """String representation"""
-        return f"DPTensorFastGradientClipping(loss_reduction={self.loss_reduction}, shape={self.loss_per_sample.shape})"
-
-    def __str__(self):
-        """String representation"""
-        return f"DPTensorFastGradientClipping({self.item():.4f})"
+            return torch.sum(self.loss_per_sample).detach().item()
 
     def backward(self):
         """
@@ -200,7 +86,9 @@ class DPLossFastGradientClipping:
 
     def __init__(
         self,
-        module,  # Union[GradSampleModuleFastGradientClipping, GradSampleHooksFastGradientClipping]
+        module: Union[
+            GradSampleModuleFastGradientClipping, GradSampleHooksFastGradientClipping
+        ],
         optimizer: DPOptimizerFastGradientClipping,
         criterion,
         loss_reduction: str = "mean",
@@ -215,7 +103,10 @@ class DPLossFastGradientClipping:
             setattr(criterion, "reduction", module.loss_reduction)
 
         assert (
-            loss_reduction == module.loss_reduction == optimizer.loss_reduction
+            loss_reduction
+            == criterion.reduction
+            == module.loss_reduction
+            == optimizer.loss_reduction
         ), "loss_reduction should be the same across GradSampleModule, Optimizer, Criterion, and loss_reduction"
 
         self.optimizer = optimizer

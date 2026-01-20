@@ -7,7 +7,7 @@ We currently provide two independent approaches for computing per sample gradien
 (stable implementation, exists since the very first version of Opacus) and ``GradSampleModuleExpandedWeights``
 (based on a beta functionality available in PyTorch 1.12).
 
-Each of the two implementations comes with its own set of limitations, and we leave the choice up to the client
+Each of the two implementations comes with it's own set of limitations, and we leave the choice up to the client
 which one to use.
 
 ``GradSampleModuleExpandedWeights`` is currently in early beta and can produce unexpected errors, but potentially
@@ -18,7 +18,7 @@ If you want to experiment with the new functionality, you have two options. Try
 ``GradSampleModuleExpandedWeights``(`grad_sample_mode="ew"`) for better performance and `grad_sample_mode=functorch` 
 if your model is not supported by ``GradSampleModule``. 
 
-Please switch back to ``GradSampleModule``(`grad_sample_mode="hooks"`) if you encounter strange errors or unexpected behaviour.
+Please switch back to ``GradSampleModule``(`grad_sample_mode="hooks"`) if you encounter strange errors or unexpexted behaviour.
 We'd also appreciate it if you report these to us
 
 ## Hooks-based approach
@@ -46,7 +46,7 @@ old behaviour for all previously supported models) and will only use functorch f
 
 With `force_functorch=True` passed to the constructor `GradSampleModule` will rely exclusively on functorch. 
 
-## ExpandedWeights approach
+## ExpandedWeigths approach
 - Model wrapping class: ``opacus.grad_sample.gsm_exp_weights.GradSampleModuleExpandedWeights``
 - Keyword argument for ``PrivacyEngine.make_private()``: `grad_sample_mode="ew"`
 

@@ -34,10 +34,9 @@ logger.disabled = True
 
 class GradSampleHooksFastGradientClippingFSDP(GradSampleHooksFastGradientClipping):
     """
-    Hooks-based implementation for Fast Gradient and Ghost Clipping with FSDP support.
+    Hooks-based implementation for Fast Gradient and Ghost Clipping with FSDP support
 
-    Computes norms of gradients without gradient instantiation.
-    Attaches to the model without wrapping it in an nn.Module.
+    Computes norms of gradients without gradient instantiation
     """
 
     def __init__(
@@ -47,9 +46,7 @@ class GradSampleHooksFastGradientClippingFSDP(GradSampleHooksFastGradientClippin
         batch_first: bool = True,
         loss_reduction="mean",
         strict: bool = True,
-        force_functorch=False,
         max_grad_norm=1,
-        use_ghost_clipping=True,
     ):
         """
 
@@ -64,12 +61,6 @@ class GradSampleHooksFastGradientClippingFSDP(GradSampleHooksFastGradientClippin
             max_grad_norm: The value at which gradients are to be clipped.
             strict: If set to True, the input module will be validated to make sure that
                 it does not have buffers in all its submodules.
-            force_functorch: If set to ``True``, will use functorch to compute
-                all per sample gradients. Otherwise, functorch will be used only
-                for layers without registered grad sampler methods.
-            use_ghost_clipping: If set to ``True``, Ghost Clipping
-                will be used for clipping gradients of supported layers. If ``False``, Fast
-                Gradient Clipping will be used for all layers.
 
         Raises:
             NotImplementedError
@@ -82,9 +73,9 @@ class GradSampleHooksFastGradientClippingFSDP(GradSampleHooksFastGradientClippin
             batch_first=batch_first,
             loss_reduction=loss_reduction,
             strict=strict,
-            force_functorch=force_functorch,
+            force_functorch=False,
             max_grad_norm=max_grad_norm,
-            use_ghost_clipping=use_ghost_clipping,
+            use_ghost_clipping=True,
         )
 
     def _get_module_type(self, module: nn.Module) -> str:
@@ -231,7 +222,7 @@ class GradSampleModuleFastGradientClippingFSDP(
         strict: bool = True,
         force_functorch=False,
         max_grad_norm=1,
-        use_ghost_clipping=True,
+        use_ghost_clipping: bool = True,
     ):
         """
 
@@ -265,8 +256,5 @@ class GradSampleModuleFastGradientClippingFSDP(
             batch_first=batch_first,
             loss_reduction=loss_reduction,
             strict=strict,
-            force_functorch=force_functorch,
             max_grad_norm=max_grad_norm,
-            use_ghost_clipping=use_ghost_clipping,
         )
-        self.grad_accumulation_hook = None

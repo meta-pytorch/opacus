@@ -65,7 +65,7 @@ class GradSampleHooksFastGradientClippingTest(unittest.TestCase):
         self.assertIsInstance(model, SimpleModel)
 
         # Hooks should be installed
-        self.assertTrue(len(hooks.autograd_grad_sample_hooks) > 0)
+        self.assertTrue(len(hooks._module.autograd_grad_sample_hooks) > 0)
         self.assertTrue(hooks.hooks_enabled)
 
         # Clean up
@@ -197,11 +197,11 @@ class GradSampleHooksFastGradientClippingTest(unittest.TestCase):
         )
         loss.backward()
 
-        # Check that grad samples are computed
+        # Check that grad samples are computed then cleared
         for name, param in model.named_parameters():
             if param.requires_grad:
-                self.assertIsNotNone(param.grad_sample)
-                self.assertEqual(param.grad_sample.shape[0], self.batch_size)
+                self.assertIsNone(param.grad_sample)
+                self.assertIsNotNone(param._norm_sample)
 
         # Clean up
         hooks.cleanup()
@@ -243,7 +243,7 @@ class GradSampleHooksFastGradientClippingTest(unittest.TestCase):
         )
 
         # Verify hooks and attributes exist
-        self.assertTrue(len(hooks.autograd_grad_sample_hooks) > 0)
+        self.assertTrue(len(hooks._module.autograd_grad_sample_hooks) > 0)
         for param in model.parameters():
             self.assertTrue(hasattr(param, "_forward_counter"))
 
@@ -251,7 +251,7 @@ class GradSampleHooksFastGradientClippingTest(unittest.TestCase):
         hooks.cleanup()
 
         # Verify hooks are removed
-        self.assertFalse(hasattr(hooks, "autograd_grad_sample_hooks"))
+        self.assertFalse(hasattr(hooks._module, "autograd_grad_sample_hooks"))
 
         # Verify attributes are removed
         for param in model.parameters():
@@ -335,109 +335,6 @@ class GradSampleHooksFastGradientClippingTest(unittest.TestCase):
         # After hooks - isinstance should still work
         self.assertIsInstance(model, SimpleModel)
         self.assertIsInstance(model, nn.Module)
-
-        # Clean up
-        hooks.cleanup()
-
-    def test_dp_tensor_arithmetic_operations(self):
-        """Test that DPTensorFastGradientClipping supports arithmetic operations"""
-        from opacus.optimizers import DPOptimizerFastGradientClipping
-        from opacus.utils.fast_gradient_clipping_utils import (
-            DPTensorFastGradientClipping,
-        )
-
-        model = SimpleModel(self.input_dim, self.hidden_dim, self.output_dim)
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
-
-        hooks = GradSampleHooksFastGradientClipping(
-            model,
-            batch_first=True,
-            loss_reduction=self.loss_reduction,
-            max_grad_norm=self.max_grad_norm,
-        )
-
-        dp_optimizer = DPOptimizerFastGradientClipping(
-            optimizer=optimizer,
-            noise_multiplier=1.0,
-            max_grad_norm=self.max_grad_norm,
-            expected_batch_size=self.batch_size,
-            loss_reduction=self.loss_reduction,
-        )
-
-        loss_per_sample = torch.randn(self.batch_size)
-        dp_loss = DPTensorFastGradientClipping(
-            hooks, dp_optimizer, loss_per_sample, self.loss_reduction
-        )
-
-        # Test division
-        divided_loss = dp_loss / 2.0
-        self.assertIsInstance(divided_loss, DPTensorFastGradientClipping)
-        self.assertTrue(
-            torch.allclose(divided_loss.loss_per_sample, loss_per_sample / 2.0)
-        )
-
-        # Test multiplication
-        multiplied_loss = dp_loss * 3.0
-        self.assertIsInstance(multiplied_loss, DPTensorFastGradientClipping)
-        self.assertTrue(
-            torch.allclose(multiplied_loss.loss_per_sample, loss_per_sample * 3.0)
-        )
-
-        # Test right multiplication
-        rmultiplied_loss = 3.0 * dp_loss
-        self.assertIsInstance(rmultiplied_loss, DPTensorFastGradientClipping)
-        self.assertTrue(
-            torch.allclose(rmultiplied_loss.loss_per_sample, 3.0 * loss_per_sample)
-        )
-
-        # Test addition with scalar
-        added_loss = dp_loss + 1.0
-        self.assertIsInstance(added_loss, DPTensorFastGradientClipping)
-        self.assertTrue(
-            torch.allclose(added_loss.loss_per_sample, loss_per_sample + 1.0)
-        )
-
-        # Test addition with another DPTensor
-        loss_per_sample2 = torch.randn(self.batch_size)
-        dp_loss2 = DPTensorFastGradientClipping(
-            hooks, dp_optimizer, loss_per_sample2, self.loss_reduction
-        )
-        summed_loss = dp_loss + dp_loss2
-        self.assertIsInstance(summed_loss, DPTensorFastGradientClipping)
-        self.assertTrue(
-            torch.allclose(
-                summed_loss.loss_per_sample, loss_per_sample + loss_per_sample2
-            )
-        )
-
-        # Test subtraction
-        subtracted_loss = dp_loss - 0.5
-        self.assertIsInstance(subtracted_loss, DPTensorFastGradientClipping)
-        self.assertTrue(
-            torch.allclose(subtracted_loss.loss_per_sample, loss_per_sample - 0.5)
-        )
-
-        # Test right subtraction
-        rsubtracted_loss = 1.0 - dp_loss
-        self.assertIsInstance(rsubtracted_loss, DPTensorFastGradientClipping)
-        self.assertTrue(
-            torch.allclose(rsubtracted_loss.loss_per_sample, 1.0 - loss_per_sample)
-        )
-
-        # Test negation
-        negated_loss = -dp_loss
-        self.assertIsInstance(negated_loss, DPTensorFastGradientClipping)
-        self.assertTrue(torch.allclose(negated_loss.loss_per_sample, -loss_per_sample))
-
-        # Test item()
-        item_value = dp_loss.item()
-        self.assertIsInstance(item_value, float)
-
-        # Test string representations
-        repr_str = repr(dp_loss)
-        self.assertIn("DPTensorFastGradientClipping", repr_str)
-        str_str = str(dp_loss)
-        self.assertIn("DPTensorFastGradientClipping", str_str)
 
         # Clean up
         hooks.cleanup()
