@@ -245,6 +245,7 @@ class PrivacyEngine:
         optimizer: DPOptimizer,
         criterion=nn.CrossEntropyLoss(),
         loss_reduction: str = "mean",
+        **kwargs,
     ) -> DPLossFastGradientClipping:
         """
         Args:

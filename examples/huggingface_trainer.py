@@ -15,8 +15,7 @@
 
 """
 HuggingFace Trainer with Differential Privacy support.
-This example demonstrates a robust integration of Opacus with HuggingFace Trainer,
-following the original implementation used in federated research.
+This example demonstrates an integration of Opacus with HuggingFace Trainer for training models with DP-SGD.
 """
 
 import math
@@ -30,7 +29,6 @@ from opacus.accountants import create_accountant
 from opacus.accountants.utils import get_noise_multiplier
 from opacus.data_loader import DPDataLoader
 
-# Use wrap_model instead of wrap_model_in_controller as it's the current Opacus API
 from opacus.grad_sample.utils import wrap_model
 from opacus.optimizers import AdaClipDPOptimizer, DPOptimizer, get_optimizer_class
 from opacus.utils.batch_memory_manager import wrap_data_loader

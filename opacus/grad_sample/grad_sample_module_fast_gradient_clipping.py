@@ -51,14 +51,11 @@ def create_norm_sample(
 
     Args:
         param: Parameter to which ``_norm_sample`` will be added
-        grad_sample: Per-sample gradients tensor (or list of tensors). Must be of the same
+        grad_sample: Per-sample gradients tensor. Must be of the same
             shape as ``param`` with extra batch dimension
     """
 
     if param.requires_grad:
-        if isinstance(grad_sample, list):
-            grad_sample = torch.stack(grad_sample, dim=0).sum(dim=0)
-
         if (
             max_batch_len == 0
         ):  # To handle the case of empty batch that may arise from Poisson sampling
@@ -66,6 +63,11 @@ def create_norm_sample(
                 [], device=grad_sample.device, dtype=grad_sample.dtype
             )
         else:
+            param._norm_sample = torch.zeros(
+                torch.Size([max_batch_len, 1]),
+                device=grad_sample.device,
+                dtype=grad_sample.dtype,
+            )
             param._norm_sample = grad_sample.reshape(len(grad_sample), -1).norm(
                 2, dim=-1
             )
