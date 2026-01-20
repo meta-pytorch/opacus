@@ -157,15 +157,8 @@ class MixedPrecisionTest(unittest.TestCase):
                 # grad_sample and norm_sample could be either in FP32 or low precision depending on the parameter
                 # we do not explicitly cast them up to FP32, we only ensure that final gradients are cast up
                 if p.grad_sample is not None:
-                    if isinstance(p.grad_sample, list):
-                        for gs in p.grad_sample:
-                            self.assertTrue(gs.dtype in [torch.float32, dtype])
-                    else:
-                        self.assertTrue(p.grad_sample.dtype in [torch.float32, dtype])
-                if (
-                    grad_sample_mode == "ghost"
-                    and getattr(p, "_norm_sample", None) is not None
-                ):
+                    self.assertTrue(p.grad_sample.dtype in [torch.float32, dtype])
+                if grad_sample_mode == "ghost" and p._norm_sample is not None:
                     self.assertTrue(p._norm_sample.dtype in [torch.float32, dtype])
 
             optimizer.step()
@@ -213,15 +206,8 @@ class MixedPrecisionTest(unittest.TestCase):
                 if p.grad is not None:
                     self.assertTrue(p.grad.dtype == dtype)
                 if p.grad_sample is not None:
-                    if isinstance(p.grad_sample, list):
-                        for gs in p.grad_sample:
-                            self.assertTrue(gs.dtype == dtype)
-                    else:
-                        self.assertTrue(p.grad_sample.dtype == dtype)
-                if (
-                    grad_sample_mode == "ghost"
-                    and getattr(p, "_norm_sample", None) is not None
-                ):
+                    self.assertTrue(p.grad_sample.dtype == dtype)
+                if grad_sample_mode == "ghost" and p._norm_sample is not None:
                     self.assertTrue(p._norm_sample.dtype == dtype)
 
             optimizer.step()

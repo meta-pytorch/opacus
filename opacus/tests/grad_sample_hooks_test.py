@@ -194,9 +194,7 @@ class GradSampleHooksTest(unittest.TestCase):
 
     def test_custom_module_validation(self) -> None:
         """Test that unsupported modules raise appropriate errors."""
-        from opacus.validators.errors import UnsupportedModuleError
-
-        with self.assertRaises(UnsupportedModuleError):
+        with self.assertRaises(NotImplementedError):
             hooks = GradSampleHooks(mobilenet_v3_small())
             hooks.cleanup()
 

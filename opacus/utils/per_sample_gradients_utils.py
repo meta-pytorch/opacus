@@ -116,55 +116,51 @@ def compute_microbatch_grad_sample(
     Returns:
         Dictionary mapping parameter_name -> per-sample-gradient for that parameter
     """
-    old_deterministic = torch.are_deterministic_algorithms_enabled()
     torch.use_deterministic_algorithms(True)
-    try:
-        torch.manual_seed(0)
-        np.random.seed(0)
+    torch.manual_seed(0)
+    np.random.seed(0)
 
-        module = ModelWithLoss(clone_module(module), loss_reduction)
+    module = ModelWithLoss(clone_module(module), loss_reduction)
 
-        for _, p in trainable_parameters(module):
-            p.microbatch_grad_sample = []
+    for _, p in trainable_parameters(module):
+        p.microbatch_grad_sample = []
 
-        if not batch_first and type(x) is not list:
-            # This allows us to iterate with x_i
-            x = x.transpose(0, 1)
+    if not batch_first and type(x) is not list:
+        # This allows us to iterate with x_i
+        x = x.transpose(0, 1)
 
-        # Invariant: x is [B, T, ...]
+    # Invariant: x is [B, T, ...]
 
-        for x_i in chunk_method(x):
-            # x_i is [T, ...]
-            module.zero_grad()
-            if type(x_i) is not tuple:
-                # EmbeddingBag provides tuples
-                x_i = x_i.unsqueeze(
-                    0 if batch_first else 1
-                )  # x_i of size [1, T, ...] if batch_first, else [T, 1, ...]
-            loss_i = module(x_i)
-            loss_i.backward()
-            for p in module.parameters():
-                p.microbatch_grad_sample.append(p.grad.detach().clone())
+    for x_i in chunk_method(x):
+        # x_i is [T, ...]
+        module.zero_grad()
+        if type(x_i) is not tuple:
+            # EmbeddingBag provides tuples
+            x_i = x_i.unsqueeze(
+                0 if batch_first else 1
+            )  # x_i of size [1, T, ...] if batch_first, else [T, 1, ...]
+        loss_i = module(x_i)
+        loss_i.backward()
+        for p in module.parameters():
+            p.microbatch_grad_sample.append(p.grad.detach().clone())
 
-        for _, p in trainable_parameters(module):
-            if batch_first:
-                p.microbatch_grad_sample = torch.stack(
-                    p.microbatch_grad_sample, dim=0  # [B, T, ...]
-                )
-            else:
-                p.microbatch_grad_sample = torch.stack(
-                    p.microbatch_grad_sample, dim=1  # [T, B, ...]
-                ).transpose(
-                    0, 1
-                )  # Opacus's semantics is that grad_samples are ALWAYS batch_first: [B, T, ...]
+    for _, p in trainable_parameters(module):
+        if batch_first:
+            p.microbatch_grad_sample = torch.stack(
+                p.microbatch_grad_sample, dim=0  # [B, T, ...]
+            )
+        else:
+            p.microbatch_grad_sample = torch.stack(
+                p.microbatch_grad_sample, dim=1  # [T, B, ...]
+            ).transpose(
+                0, 1
+            )  # Opacus's semantics is that grad_samples are ALWAYS batch_first: [B, T, ...]
 
-        microbatch_grad_samples = {
-            name: p.microbatch_grad_sample
-            for name, p in trainable_parameters(module.wrapped_module)
-        }
-        return microbatch_grad_samples
-    finally:
-        torch.use_deterministic_algorithms(old_deterministic)
+    microbatch_grad_samples = {
+        name: p.microbatch_grad_sample
+        for name, p in trainable_parameters(module.wrapped_module)
+    }
+    return microbatch_grad_samples
 
 
 def compute_opacus_grad_sample(
@@ -188,34 +184,28 @@ def compute_opacus_grad_sample(
     Returns:
         Dictionary mapping parameter_name -> per-sample-gradient for that parameter
     """
-    old_deterministic = torch.are_deterministic_algorithms_enabled()
     torch.use_deterministic_algorithms(True)
-    try:
-        torch.manual_seed(0)
-        np.random.seed(0)
+    torch.manual_seed(0)
+    np.random.seed(0)
 
-        gs_module = wrap_model(
-            model=clone_module(module),
-            grad_sample_mode=grad_sample_mode,
-            batch_first=batch_first,
-            loss_reduction=loss_reduction,
-        )
-        grad_sample_module = ModelWithLoss(gs_module, loss_reduction)
+    gs_module = wrap_model(
+        model=clone_module(module),
+        grad_sample_mode=grad_sample_mode,
+        batch_first=batch_first,
+        loss_reduction=loss_reduction,
+    )
+    grad_sample_module = ModelWithLoss(gs_module, loss_reduction)
 
-        grad_sample_module.zero_grad()
-        loss = grad_sample_module(x)
-        loss.backward()
+    grad_sample_module.zero_grad()
+    loss = grad_sample_module(x)
+    loss.backward()
 
-        opacus_grad_samples = {
-            name: p.grad_sample
-            for name, p in trainable_parameters(
-                grad_sample_module.wrapped_module._module
-            )
-        }
+    opacus_grad_samples = {
+        name: p.grad_sample
+        for name, p in trainable_parameters(grad_sample_module.wrapped_module._module)
+    }
 
-        return opacus_grad_samples
-    finally:
-        torch.use_deterministic_algorithms(old_deterministic)
+    return opacus_grad_samples
 
 
 def check_torch_version_for_ew_sample() -> bool:

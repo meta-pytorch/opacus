@@ -237,7 +237,7 @@ class GradientComputationTest(unittest.TestCase):
                         dp=False,
                         clipping=None,
                         grad_sample_mode=None,
-                        wrap_model=True,
+                        wrap_model=wrap_model,
                     )
 
                     self.assertTrue(

@@ -129,11 +129,19 @@ class GradSampleHooks(AbstractGradSampleHooks):
             m,
             batch_first=batch_first,
             loss_reduction=loss_reduction,
-            strict=strict,
         )
+
+        errors = self.validate(module=m, strict=strict)
+        if errors and not strict:
+            logger.info(
+                f"Validation found the following errors: {errors}."
+                "Using non-strict mode, continuing"
+            )
 
         self.hooks_enabled = False
         self.grad_accumulation_allowed = True
+        self.batch_first = batch_first
+        self.loss_reduction = loss_reduction
         self.force_functorch = force_functorch
         self.add_hooks(
             loss_reduction=loss_reduction,
@@ -199,11 +207,11 @@ class GradSampleHooks(AbstractGradSampleHooks):
             if force_functorch or not (module_type in self.GRAD_SAMPLERS):
                 prepare_layer(module, batch_first=batch_first)
 
-            self.autograd_grad_sample_hooks.append(
+            self._module.autograd_grad_sample_hooks.append(
                 module.register_forward_hook(self.capture_activations_hook)
             )
 
-            self.autograd_grad_sample_hooks.append(
+            self._module.autograd_grad_sample_hooks.append(
                 module.register_full_backward_hook(
                     partial(
                         self.capture_backprops_hook,
@@ -228,13 +236,14 @@ class GradSampleHooks(AbstractGradSampleHooks):
                     handle.remove()
                 delattr(p, "ddp_hooks")
 
-        if hasattr(self, "autograd_grad_sample_hooks"):
+        if not hasattr(self, "autograd_grad_sample_hooks"):
+            raise ValueError("Asked to remove hooks, but no hooks found")
+        else:
             while self.autograd_grad_sample_hooks:
                 handle = self.autograd_grad_sample_hooks.pop()
                 handle.remove()
             delattr(self, "autograd_grad_sample_hooks")
-            if hasattr(self._module, "autograd_grad_sample_hooks"):
-                delattr(self._module, "autograd_grad_sample_hooks")
+            delattr(self._module, "autograd_grad_sample_hooks")
 
         # Remove functorch hooks
         for _module_name, module in trainable_modules(self._module):
@@ -435,18 +444,52 @@ class GradSampleHooks(AbstractGradSampleHooks):
 
         return True
 
+    @classmethod
+    def validate(
+        cls, module: nn.Module, *, strict: bool = False
+    ) -> List[NotImplementedError]:
+        """
+        Check if per sample gradients can be fully computed for a given model
+
+        Args:
+            module: nn.Module to be checked
+            raise_if_error: Behaviour in case of a negative check result. Will
+            return the list of exceptions if set to ``False``, and throw otherwise
+
+        Returns:
+            Empty list of validation is successful.
+            List of validation errors  if ``raise_if_error=False`` and
+            unsupported modules are found
+
+        Raises:
+            NotImplementedError
+                If ``raise_if_error=True`` and unsupported modules are found
+        """
+        errors = []
+        errors.extend(
+            [
+                NotImplementedError(
+                    f"Model contains a trainable layer with buffers"
+                    f"that Opacus doesn't currently support({m_name}:{m}). "
+                )
+                for m_name, m in trainable_modules(module)
+                # With functorch, all modules are trainable
+                # We still want to avoid module that have buffers (e.g. BatchNorm)
+                # as the buffers are not private
+                if len(list(m.buffers())) > 0
+            ]
+        )
+        # raise or return errors as needed
+        if strict and len(errors) > 0:
+            raise NotImplementedError(errors)
+        else:
+            return errors
+
     def forbid_grad_accumulation(self):
         self.grad_accumulation_allowed = False
 
     def allow_grad_accumulation(self):
         self.grad_accumulation_allowed = True
-
-    def cleanup(self):
-        """
-        Cleanup hooks and all hook-related attributes.
-        """
-        self.remove_hooks()
-        super().cleanup()
 
 
 class GradSampleModule(GradSampleHooks, AbstractGradSampleModule):
@@ -501,7 +544,9 @@ class GradSampleModule(GradSampleHooks, AbstractGradSampleModule):
             strict=strict,
             force_functorch=force_functorch,
         )
-        self.grad_accumulation_hook = None
+
+    def forward(self, *args, **kwargs):
+        return self._module(*args, **kwargs)
 
 
 def _get_batch_size(*, module: nn.Module, batch_dim: int) -> int:

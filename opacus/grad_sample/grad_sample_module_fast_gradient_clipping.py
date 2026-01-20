@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Union
+from typing import List
 
 import torch
 import torch.nn as nn
@@ -40,10 +40,7 @@ logger.disabled = True
 
 
 def create_norm_sample(
-    *,
-    param: torch.Tensor,
-    grad_sample: Union[torch.Tensor, List[torch.Tensor]],
-    max_batch_len: int,
+    *, param: torch.Tensor, grad_sample: torch.Tensor, max_batch_len: int
 ) -> None:
     """
     Creates a ``_norm_sample`` attribute in the given parameter
@@ -75,10 +72,9 @@ def create_norm_sample(
 
 class GradSampleHooksFastGradientClipping(GradSampleHooks):
     """
-    Hooks-based implementation for Fast Gradient and Ghost Clipping.
+    Hooks-based implementation for Fast Gradient and Ghost Clipping
 
-    Computes norms of gradients without gradient instantiation.
-    Attaches to the model without wrapping it in an nn.Module.
+    Computes norms of gradients without gradient instantiation
     """
 
     NORM_SAMPLERS = {}
@@ -251,6 +247,7 @@ class GradSampleHooksFastGradientClipping(GradSampleHooks):
                         grad_sample=p.grad_sample,
                         max_batch_len=module.max_batch_len,
                     )
+                    p.grad_sample = None
         if len(module.activations) == 0:
             if hasattr(module, "max_batch_len"):
                 del module.max_batch_len
@@ -363,4 +360,3 @@ class GradSampleModuleFastGradientClipping(
             max_grad_norm=max_grad_norm,
             use_ghost_clipping=use_ghost_clipping,
         )
-        self.grad_accumulation_hook = None
