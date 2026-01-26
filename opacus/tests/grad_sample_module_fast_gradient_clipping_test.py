@@ -16,6 +16,7 @@
 import copy
 import logging
 import unittest
+from unittest.mock import MagicMock
 
 import hypothesis.strategies as st
 import torch
@@ -24,7 +25,10 @@ import torch.nn.functional as F
 from hypothesis import given, settings
 from opacus.grad_sample import GradSampleModule, GradSampleModuleFastGradientClipping
 from opacus.optimizers import DPOptimizer, DPOptimizerFastGradientClipping
-from opacus.utils.fast_gradient_clipping_utils import DPLossFastGradientClipping
+from opacus.utils.fast_gradient_clipping_utils import (
+    DPLossFastGradientClipping,
+    DPTensorFastGradientClipping,
+)
 from opacus.utils.per_sample_gradients_utils import clone_module
 from torch.utils.data import DataLoader, Dataset
 
@@ -516,3 +520,81 @@ class GradSampleModuleFastGradientClippingEmbeddingLayerTest(unittest.TestCase):
         self.assertEqual(clipping_coef.shape[0], batch_size)
         # Verify clipping coefficients are correct
         self.assertTrue(torch.all(clipping_coef <= 1.0))
+
+
+class DPTensorArithmeticTest(unittest.TestCase):
+    def setUp(self):
+        self.module = MagicMock()
+        self.optimizer = MagicMock()
+        self.loss_per_sample = torch.tensor([1.0, 2.0, 3.0])
+        self.dp_tensor = DPTensorFastGradientClipping(
+            self.module, self.optimizer, self.loss_per_sample, loss_reduction="mean"
+        )
+
+    def test_add(self):
+        res = self.dp_tensor + 1.0
+        self.assertIsInstance(res, DPTensorFastGradientClipping)
+        self.assertTrue(
+            torch.allclose(res.loss_per_sample, torch.tensor([2.0, 3.0, 4.0]))
+        )
+
+    def test_radd(self):
+        res = 1.0 + self.dp_tensor
+        self.assertIsInstance(res, DPTensorFastGradientClipping)
+        self.assertTrue(
+            torch.allclose(res.loss_per_sample, torch.tensor([2.0, 3.0, 4.0]))
+        )
+
+    def test_sub(self):
+        res = self.dp_tensor - 1.0
+        self.assertIsInstance(res, DPTensorFastGradientClipping)
+        self.assertTrue(
+            torch.allclose(res.loss_per_sample, torch.tensor([0.0, 1.0, 2.0]))
+        )
+
+    def test_mul(self):
+        res = self.dp_tensor * 2.0
+        self.assertIsInstance(res, DPTensorFastGradientClipping)
+        self.assertTrue(
+            torch.allclose(res.loss_per_sample, torch.tensor([2.0, 4.0, 6.0]))
+        )
+
+    def test_rmul(self):
+        res = 2.0 * self.dp_tensor
+        self.assertIsInstance(res, DPTensorFastGradientClipping)
+        self.assertTrue(
+            torch.allclose(res.loss_per_sample, torch.tensor([2.0, 4.0, 6.0]))
+        )
+
+    def test_truediv(self):
+        res = self.dp_tensor / 2.0
+        self.assertIsInstance(res, DPTensorFastGradientClipping)
+        self.assertTrue(
+            torch.allclose(res.loss_per_sample, torch.tensor([0.5, 1.0, 1.5]))
+        )
+
+    def test_neg(self):
+        res = -self.dp_tensor
+        self.assertIsInstance(res, DPTensorFastGradientClipping)
+        self.assertTrue(
+            torch.allclose(res.loss_per_sample, torch.tensor([-1.0, -2.0, -3.0]))
+        )
+
+    def test_add_dp_tensors(self):
+        other_loss = torch.tensor([0.1, 0.2, 0.3])
+        other_dp = DPTensorFastGradientClipping(
+            self.module, self.optimizer, other_loss, loss_reduction="mean"
+        )
+        res = self.dp_tensor + other_dp
+        self.assertIsInstance(res, DPTensorFastGradientClipping)
+        self.assertTrue(
+            torch.allclose(res.loss_per_sample, torch.tensor([1.1, 2.2, 3.3]))
+        )
+
+    def test_item(self):
+        self.assertAlmostEqual(self.dp_tensor.item(), 2.0)
+
+        dp_sum = DPTensorFastGradientClipping(
+            self.module, self.optimizer, self.loss_per_sample, loss_reduction="sum"
+        )
+        self.assertAlmostEqual(dp_sum.item(), 6.0)
