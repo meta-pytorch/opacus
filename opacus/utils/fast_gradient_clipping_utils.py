@@ -120,8 +120,10 @@ class DPLossFastGradientClipping:
         """
         old_reduction = self.criterion.reduction
         self.criterion.reduction = "none"
-        loss_per_sample = self.criterion(*args, **kwargs)
-        self.criterion.reduction = old_reduction
+        try:
+            loss_per_sample = self.criterion(*args, **kwargs)
+        finally:
+            self.criterion.reduction = old_reduction
 
         if shape is not None and loss_per_sample.shape[0] == shape[0] * shape[1]:
             # Note that the privacy unit for generative NLP tasks is per sequence.
