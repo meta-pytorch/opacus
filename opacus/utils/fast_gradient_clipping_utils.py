@@ -100,6 +100,11 @@ class DPLossFastGradientClipping:
             "mean",
             "sum",
         ], "loss_reduction should be either 'mean' or 'sum'"
+
+        # if the criterion is missing reduction attribute, use module's reduction attribute'
+        if not hasattr(criterion, "reduction"):
+            setattr(criterion, "reduction", module.loss_reduction)
+
         assert (
             loss_reduction
             == criterion.reduction
@@ -111,14 +116,17 @@ class DPLossFastGradientClipping:
         self.module = module
         self.criterion = criterion
         self.loss_reduction = loss_reduction
-        self.criterion.reduction = "none"
 
     def __call__(self, *args, shape=None, **kwargs) -> DPTensorFastGradientClipping:
         """
         Redefining the forward function to compute per-sample loss and wrap it in DPTensorFastGradientClipping
         """
-
-        loss_per_sample = self.criterion(*args, **kwargs)
+        old_reduction = self.criterion.reduction
+        self.criterion.reduction = "none"
+        try:
+            loss_per_sample = self.criterion(*args, **kwargs)
+        finally:
+            self.criterion.reduction = old_reduction
 
         if shape is not None and loss_per_sample.shape[0] == shape[0] * shape[1]:
             # Note that the privacy unit for generative NLP tasks is per sequence.
