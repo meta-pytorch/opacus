@@ -417,6 +417,18 @@ class DPOptimizer(Optimizer):
         """
         self.original_optimizer.defaults = defaults
 
+    @property
+    def accounting_noise_multiplier(self) -> float:
+        """
+        Returns the noise multiplier value to be used for privacy accounting.
+
+        For standard DPOptimizer, this is the same as ``noise_multiplier``.
+        Subclasses that internally adjust ``noise_multiplier`` (e.g., AdaClipDPOptimizer)
+        should override this property to return the original user-provided value,
+        ensuring correct privacy accounting.
+        """
+        return self.noise_multiplier
+
     def attach_step_hook(self, fn: Callable[[DPOptimizer], None]):
         """
         Attaches a hook to be executed after gradient clipping/noising, but before the

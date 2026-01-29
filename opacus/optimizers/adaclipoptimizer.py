@@ -76,6 +76,10 @@ class AdaClipDPOptimizer(DPOptimizer):
         self.max_clipbound = max_clipbound
         self.min_clipbound = min_clipbound
         self.unclipped_num_std = unclipped_num_std
+        # Store the original noise_multiplier for privacy accounting.
+        # The adjusted noise_multiplier is used for noise generation, but
+        # the accountant needs the original value for correct privacy calculations.
+        self._original_noise_multiplier = self.noise_multiplier
         # Theorem 1. in  https://arxiv.org/pdf/1905.03871.pdf
         if self.noise_multiplier > 0:  # if noise_multiplier = 0 then it stays zero
             self.noise_multiplier = (
@@ -83,6 +87,17 @@ class AdaClipDPOptimizer(DPOptimizer):
             ) ** (-1 / 2)
         self.sample_size = 0
         self.unclipped_num = 0
+
+    @property
+    def accounting_noise_multiplier(self) -> float:
+        """
+        Returns the original noise multiplier for privacy accounting.
+
+        AdaClip internally adjusts noise_multiplier based on Theorem 1 from
+        https://arxiv.org/pdf/1905.03871.pdf, but the accountant should use
+        the original user-provided value for correct privacy budget calculation.
+        """
+        return self._original_noise_multiplier
 
     def zero_grad(self, set_to_none: bool = False):
         """

@@ -80,7 +80,7 @@ class IAccountant(abc.ABC):
             # The reason is that the sample rate is the same in both cases (but in
             # distributed mode, each node samples among a subset of the data)
             self.step(
-                noise_multiplier=optim.noise_multiplier,
+                noise_multiplier=optim.accounting_noise_multiplier,
                 sample_rate=sample_rate * optim.accumulated_iterations,
             )
 
