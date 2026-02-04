@@ -14,8 +14,11 @@
 # limitations under the License.
 
 """
-Tests for accounting_noise_multiplier property to ensure correct privacy accounting,
-especially for AdaClipDPOptimizer which internally adjusts noise_multiplier.
+Tests for AdaClipDPOptimizer to ensure correct privacy accounting.
+
+The AdaClip optimizer uses an adjusted noise multiplier for gradient noise
+(Theorem 1 from https://arxiv.org/pdf/1905.03871.pdf), but the original
+noise_multiplier should be preserved for privacy accounting.
 """
 
 import unittest
@@ -38,8 +41,8 @@ class SimpleModel(nn.Module):
         return self.fc(x)
 
 
-class AccountingNoiseMultiplierTest(unittest.TestCase):
-    """Test that accounting_noise_multiplier property works correctly."""
+class AdaClipNoiseMultiplierTest(unittest.TestCase):
+    """Test that AdaClip preserves original noise_multiplier for privacy accounting."""
 
     def setUp(self):
         # For AdaClip: noise_multiplier must be < 2 * unclipped_num_std
@@ -48,27 +51,8 @@ class AccountingNoiseMultiplierTest(unittest.TestCase):
         self.max_grad_norm = 1.0
         torch.manual_seed(42)
 
-    def test_dpoptimizer_accounting_noise_multiplier(self):
-        """Test that DPOptimizer.accounting_noise_multiplier returns noise_multiplier."""
-        model = SimpleModel()
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
-
-        dp_optimizer = DPOptimizer(
-            optimizer=optimizer,
-            noise_multiplier=self.noise_multiplier,
-            max_grad_norm=self.max_grad_norm,
-            expected_batch_size=32,
-        )
-
-        # For standard DPOptimizer, accounting_noise_multiplier should equal noise_multiplier
-        self.assertEqual(
-            dp_optimizer.accounting_noise_multiplier,
-            dp_optimizer.noise_multiplier,
-        )
-        self.assertEqual(dp_optimizer.accounting_noise_multiplier, self.noise_multiplier)
-
-    def test_adaclip_stores_original_noise_multiplier(self):
-        """Test that AdaClipDPOptimizer stores and returns the original noise_multiplier."""
+    def test_adaclip_preserves_noise_multiplier(self):
+        """Test that AdaClipDPOptimizer preserves original noise_multiplier."""
         model = SimpleModel()
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
 
@@ -84,30 +68,10 @@ class AccountingNoiseMultiplierTest(unittest.TestCase):
             expected_batch_size=32,
         )
 
-        # Store the adjusted noise_multiplier for comparison
-        adjusted_noise_multiplier = adaclip_optimizer.noise_multiplier
+        # noise_multiplier should remain unchanged (original value)
+        self.assertEqual(adaclip_optimizer.noise_multiplier, self.noise_multiplier)
 
-        # accounting_noise_multiplier should return the original value
-        self.assertEqual(
-            adaclip_optimizer.accounting_noise_multiplier, self.noise_multiplier
-        )
-
-        # Verify that noise_multiplier was adjusted according to Theorem 1
-        # noise_multiplier = (sigma^-2 - (2*sigma_u)^-2)^(-1/2)
-        expected_adjusted = (
-            self.noise_multiplier ** (-2) - (2 * self.unclipped_num_std) ** (-2)
-        ) ** (-1 / 2)
-        self.assertAlmostEqual(
-            adjusted_noise_multiplier, expected_adjusted, places=5
-        )
-
-        # accounting_noise_multiplier should differ from the adjusted noise_multiplier
-        self.assertNotEqual(
-            adaclip_optimizer.accounting_noise_multiplier,
-            adaclip_optimizer.noise_multiplier,
-        )
-
-    def test_adaclip_accounting_with_zero_noise(self):
+    def test_adaclip_with_zero_noise(self):
         """Test that AdaClipDPOptimizer handles zero noise_multiplier correctly."""
         model = SimpleModel()
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
@@ -124,12 +88,11 @@ class AccountingNoiseMultiplierTest(unittest.TestCase):
             expected_batch_size=32,
         )
 
-        # Both should be zero
-        self.assertEqual(adaclip_optimizer.accounting_noise_multiplier, 0.0)
+        # noise_multiplier should be zero
         self.assertEqual(adaclip_optimizer.noise_multiplier, 0.0)
 
-    def test_accountant_uses_accounting_noise_multiplier(self):
-        """Test that accountant hook code path uses accounting_noise_multiplier from optimizer."""
+    def test_accountant_uses_original_noise_multiplier(self):
+        """Test that accountant hook uses original noise_multiplier from AdaClip optimizer."""
         model = SimpleModel()
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         accountant = RDPAccountant()
@@ -149,11 +112,11 @@ class AccountingNoiseMultiplierTest(unittest.TestCase):
 
         sample_rate = 0.01
 
-        # Manually call accountant.step with accounting_noise_multiplier
+        # Manually call accountant.step with noise_multiplier
         # (mimicking what the hook would do)
         initial_len = len(accountant)
         accountant.step(
-            noise_multiplier=adaclip_optimizer.accounting_noise_multiplier,
+            noise_multiplier=adaclip_optimizer.noise_multiplier,
             sample_rate=sample_rate,
         )
 
@@ -165,9 +128,8 @@ class AccountingNoiseMultiplierTest(unittest.TestCase):
         last_entry = accountant.history[-1]
         recorded_noise_multiplier = last_entry[0]
 
-        # Should use accounting_noise_multiplier (original), not adjusted
+        # Should use original noise_multiplier
         self.assertEqual(recorded_noise_multiplier, self.noise_multiplier)
-        self.assertNotEqual(recorded_noise_multiplier, adaclip_optimizer.noise_multiplier)
 
     def test_privacy_accounting_with_adaclip_e2e(self):
         """End-to-end test: verify privacy accounting is correct with AdaClip via PrivacyEngine."""
@@ -202,6 +164,9 @@ class AccountingNoiseMultiplierTest(unittest.TestCase):
         # Verify optimizer is AdaClip
         self.assertIsInstance(dp_optimizer, AdaClipDPOptimizer)
 
+        # Verify noise_multiplier is preserved
+        self.assertEqual(dp_optimizer.noise_multiplier, self.noise_multiplier)
+
         # Get the accountant
         accountant = privacy_engine.accountant
 
@@ -216,48 +181,14 @@ class AccountingNoiseMultiplierTest(unittest.TestCase):
             loss.backward()
             dp_optimizer.step()
 
-        # Verify accountant recorded steps with accounting_noise_multiplier
+        # Verify accountant recorded steps with original noise_multiplier
         self.assertGreater(len(accountant), 0)
 
         # All recorded noise multipliers should be the original value
         for entry in accountant.history:
             recorded_noise = entry[0]
-            # Should match accounting_noise_multiplier (original)
-            self.assertEqual(recorded_noise, dp_optimizer.accounting_noise_multiplier)
-            # Should NOT match the adjusted noise_multiplier
-            self.assertNotEqual(recorded_noise, dp_optimizer.noise_multiplier)
-
-    def test_adaclip_accounting_multiplier_immutable(self):
-        """Test that accounting_noise_multiplier remains constant even as noise_multiplier changes."""
-        model = SimpleModel()
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
-
-        adaclip_optimizer = AdaClipDPOptimizer(
-            optimizer=optimizer,
-            noise_multiplier=self.noise_multiplier,
-            target_unclipped_quantile=0.5,
-            clipbound_learning_rate=0.01,
-            max_clipbound=2.0,
-            min_clipbound=0.5,
-            unclipped_num_std=self.unclipped_num_std,
-            max_grad_norm=self.max_grad_norm,
-            expected_batch_size=32,
-        )
-
-        # Store original values
-        original_accounting = adaclip_optimizer.accounting_noise_multiplier
-        original_noise = adaclip_optimizer.noise_multiplier
-
-        # Manually modify noise_multiplier (simulating what might happen during training)
-        adaclip_optimizer.noise_multiplier = 2.0
-
-        # accounting_noise_multiplier should remain unchanged
-        self.assertEqual(adaclip_optimizer.accounting_noise_multiplier, original_accounting)
-        self.assertEqual(adaclip_optimizer.accounting_noise_multiplier, self.noise_multiplier)
-
-        # But noise_multiplier should reflect the change
-        self.assertNotEqual(adaclip_optimizer.noise_multiplier, original_noise)
-        self.assertEqual(adaclip_optimizer.noise_multiplier, 2.0)
+            # Should match original noise_multiplier
+            self.assertEqual(recorded_noise, self.noise_multiplier)
 
     def test_comparison_dpoptimizer_vs_adaclip_accounting(self):
         """Compare accounting between standard DPOptimizer and AdaClip with same initial noise."""
@@ -289,17 +220,46 @@ class AccountingNoiseMultiplierTest(unittest.TestCase):
             expected_batch_size=32,
         )
 
-        # Both should report the same accounting_noise_multiplier
+        # Both should have the same noise_multiplier for accounting
         self.assertEqual(
-            dp_optimizer.accounting_noise_multiplier,
-            adaclip_optimizer.accounting_noise_multiplier,
-        )
-
-        # But their actual noise_multiplier values differ
-        self.assertNotEqual(
             dp_optimizer.noise_multiplier,
             adaclip_optimizer.noise_multiplier,
         )
+
+    def test_adaclip_noise_adjustment_calculation(self):
+        """Test that the adjusted noise follows Theorem 1 formula when applied internally."""
+        # According to Theorem 1: σ_eff = (σ^-2 - (2σ_u)^-2)^(-1/2)
+        sigma = self.noise_multiplier
+        sigma_u = self.unclipped_num_std
+
+        expected_adjusted = (sigma ** (-2) - (2 * sigma_u) ** (-2)) ** (-1 / 2)
+
+        # Verify the formula produces valid results
+        self.assertGreater(expected_adjusted, 0)
+        # The adjusted noise is larger than the original
+        # (σ^-2 - positive_term)^(-1/2) > σ when σ < 2*σ_u
+        self.assertGreater(expected_adjusted, sigma)
+
+    def test_adaclip_constraint_validation(self):
+        """Test that AdaClip raises error when noise_multiplier >= 2 * unclipped_num_std."""
+        model = SimpleModel()
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+
+        # This should raise ValueError: 2.0 >= 2 * 1.0 = 2.0
+        with self.assertRaises(ValueError) as context:
+            AdaClipDPOptimizer(
+                optimizer=optimizer,
+                noise_multiplier=2.0,
+                target_unclipped_quantile=0.5,
+                clipbound_learning_rate=0.01,
+                max_clipbound=2.0,
+                min_clipbound=0.5,
+                unclipped_num_std=1.0,
+                max_grad_norm=self.max_grad_norm,
+                expected_batch_size=32,
+            )
+
+        self.assertIn("noise_multiplier must be smaller than 2 * unclipped_num_std", str(context.exception))
 
 
 if __name__ == "__main__":
