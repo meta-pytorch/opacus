@@ -5,8 +5,8 @@
       "title": "Building text classifier with Fast Gradient Clipping DP-SGD"
     },
     {
-      "id": "non_wrapping_mode",
-      "title": "Training with Non-Wrapping Mode"
+      "id": "attach_only_mode",
+      "title": "Training with Attach-Only Mode"
     },
     {
       "id": "building_image_classifier",

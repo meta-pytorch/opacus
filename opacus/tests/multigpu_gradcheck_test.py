@@ -111,7 +111,7 @@ def run_ghost_clipping_test(
 
 
 def demo_basic(
-    rank, weight, world_size, dp, clipping, grad_sample_mode, wrap_model=True
+    rank, weight, world_size, dp, clipping, grad_sample_mode, attach_only=False
 ):
     torch.manual_seed(world_size)
     batch_size = 2
@@ -131,7 +131,7 @@ def demo_basic(
 
     max_grad_norm = 1e8
 
-    if dp and clipping == "flat" and wrap_model:
+    if dp and clipping == "flat" and not attach_only:
         ddp_model = DPDDP(model)
     else:
         ddp_model = DDP(model, device_ids=[rank])
@@ -153,7 +153,7 @@ def demo_basic(
     if dp:
         if clipping == "per_layer":
             max_grad_norm = [max_grad_norm for _ in model.parameters()]
-        hooks_or_gs_module, optimizer, data_loader = privacy_engine.make_private(
+        hooks_or_module, optimizer, data_loader = privacy_engine.make_private(
             module=ddp_model,
             optimizer=optimizer,
             data_loader=data_loader,
@@ -162,10 +162,10 @@ def demo_basic(
             poisson_sampling=False,
             clipping=clipping,
             grad_sample_mode=grad_sample_mode,
-            wrap_model=wrap_model,
+            attach_only=attach_only,
         )
-        if wrap_model:
-            ddp_model = hooks_or_gs_module
+        if not attach_only:
+            ddp_model = hooks_or_module
 
         if clipping == "per_layer":
             assert isinstance(optimizer, SimpleDistributedPerLayerOptimizer)
@@ -185,11 +185,11 @@ def demo_basic(
 
 
 def run_demo(
-    demo_fn, weight, world_size, dp, clipping, grad_sample_mode, wrap_model=True
+    demo_fn, weight, world_size, dp, clipping, grad_sample_mode, attach_only=False
 ):
     mp.spawn(
         demo_fn,
-        args=(weight, world_size, dp, clipping, grad_sample_mode, wrap_model),
+        args=(weight, world_size, dp, clipping, grad_sample_mode, attach_only),
         nprocs=world_size,
         join=True,
     )
@@ -210,14 +210,14 @@ class GradientComputationTest(unittest.TestCase):
         clipping_grad_sample_pairs.append(("ghost", "ghost"))
 
         for clipping, grad_sample_mode in clipping_grad_sample_pairs:
-            for wrap_model in [True, False]:
-                if not wrap_model and grad_sample_mode == "ew":
+            for attach_only in [False, True]:
+                if attach_only and grad_sample_mode == "ew":
                     continue
 
                 with self.subTest(
                     clipping=clipping,
                     grad_sample_mode=grad_sample_mode,
-                    wrap_model=wrap_model,
+                    attach_only=attach_only,
                 ):
                     weight_dp, weight_nodp = torch.zeros(10, 10), torch.zeros(10, 10)
 
@@ -228,7 +228,7 @@ class GradientComputationTest(unittest.TestCase):
                         dp=True,
                         clipping=clipping,
                         grad_sample_mode=grad_sample_mode,
-                        wrap_model=wrap_model,
+                        attach_only=attach_only,
                     )
                     run_demo(
                         demo_basic,
@@ -237,7 +237,7 @@ class GradientComputationTest(unittest.TestCase):
                         dp=False,
                         clipping=None,
                         grad_sample_mode=None,
-                        wrap_model=wrap_model,
+                        attach_only=attach_only,
                     )
 
                     self.assertTrue(

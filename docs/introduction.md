@@ -21,6 +21,6 @@ Opacus supports two modes for integrating with your PyTorch models:
 - Type checking (`isinstance()` fails, e.g., HuggingFace Transformers)
 - State dict compatibility (`_module.` prefix added to keys)
 
-**Non-wrapping mode:** Set `wrap_model=False` to attach hooks directly to your model without wrapping. This preserves model type, keeps clean state dicts, and provides better compatibility with transformer models. Requires manual cleanup via the returned `hooks.cleanup()` when done.
+**Attach-only mode:** Set `attach_only=True` to attach hooks directly to your model without wrapping. This preserves model type, keeps clean state dicts, and provides better compatibility with transformer models. Requires manual cleanup via the returned `hooks.cleanup()` when done.
 
-See the [non-wrapping mode tutorial](https://github.com/pytorch/opacus/blob/main/tutorials/non_wrapping_mode.ipynb) for details.
+See the [attach-only mode tutorial](https://github.com/pytorch/opacus/blob/main/tutorials/attach_only_mode.ipynb) for details.

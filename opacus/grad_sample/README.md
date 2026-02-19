@@ -57,11 +57,11 @@ explicitly supported, but only uses known operations, ExpandedWeights will suppo
 At the time of writing, the coverage for custom grad samplers between ``GradSampleModule`` and ``GradSampleModuleExpandedWeights``
 is roughly the same.
 
-## Non-wrapping mode (Hooks without wrapper)
+## Attach-only mode (Hooks without wrapper)
 
 Introduced in version 1.4.0, Opacus supports hooks-based grad sample computation without wrapping the model.
 
-### Why use non-wrapping mode?
+### Why use attach-only mode?
 
 By default, Opacus wraps the model in a `GradSampleModule` wrapper, which can cause compatibility issues with some architectures:
 - Type checking: `isinstance(model, MyModel)` returns `False` after wrapping.
@@ -69,11 +69,11 @@ By default, Opacus wraps the model in a `GradSampleModule` wrapper, which can ca
 - Attribute access: Some models with custom `__getattr__` (e.g., HuggingFace Transformers) may not work as expected.
 - Introspection: Tools that inspect the model structure will see the wrapper instead of the original model.
 
-Non-wrapping mode addresses these issues by attaching hooks directly to model parameters without changing the model object itself.
+Attach-only mode addresses these issues by attaching hooks directly to model parameters without changing the model object itself.
 
 ### Usage
 
-Set `wrap_model=False` in `PrivacyEngine.make_private()`:
+Set `attach_only=True` in `PrivacyEngine.make_private()`:
 
 ```python
 from opacus import PrivacyEngine
@@ -89,15 +89,15 @@ hooks, optimizer, dataloader = privacy_engine.make_private(
     data_loader=dataloader,
     noise_multiplier=1.0,
     max_grad_norm=1.0,
-    wrap_model=False,  # Enable non-wrapping mode
+    attach_only=True,
 )
 # hooks is a GradSampleHooks object for cleanup
 # model is the original model instance
 ```
 
-### Using the model in non-wrapping mode
+### Using the model in attach-only mode
 
-In non-wrapping mode, the original model remains unchanged and can be used directly for training and evaluation.
+In attach-only mode, the original model remains unchanged and can be used directly for training and evaluation.
 
 ```python
 # Use the model instance directly
@@ -125,19 +125,19 @@ This removes all hooks and attributes added by Opacus from the model parameters.
 - ExpandedWeights support: The `grad_sample_mode="ew"` mode requires overriding `.forward()` and is only available with model wrapping.
 - Manual cleanup: Unlike wrapped mode, hooks must be explicitly cleaned up when switching datasets or ending training.
 
-### When to use non-wrapping mode
+### When to use attach-only mode
 
-Use `wrap_model=False` when:
+Use `attach_only=True` when:
 - Working with HuggingFace Transformers or other models with complex `__getattr__` logic.
 - Model type checks (`isinstance()`) are required by the pipeline or optimizations.
 - Clean state dicts without `_module.` prefixes are preferred.
 - The pipeline relies on model type introspection.
 
-Use the default wrapped mode (`wrap_model=True`) when:
+Use the default wrapped mode (`attach_only=False`) when:
 - Working with standard models without complex introspection needs.
 - Automatic cleanup is preferred (the wrapper is discarded when the model goes out of scope).
 
-See the [non-wrapping mode tutorial](../tutorials/non_wrapping_mode.ipynb) for a complete example.
+See the [attach-only mode tutorial](../tutorials/attach_only_mode.ipynb) for a complete example.
 
 ## Comparative analysis
 
@@ -148,7 +148,7 @@ Please note that these are known limitations and we plan to improve Expanded Wei
 |:----------------------------:|:-------------------------------:|:----------------:|:------------------------------:| 
 |   Required PyTorch version   |              1.8+               |      1.13+       |      1.12 (to be updated)      |
 |      Development status      | Underlying mechanism deprecated |       Beta       |              Beta              | 
-|      Non-wrapping mode       | Supported (`wrap_model=False`)  |  Not supported   | Supported (`wrap_model=False`) |
+|       Attach-only mode       | Supported (`attach_only=True`)  |  Not supported   | Supported (`attach_only=True`) |
 |     Runtime Performance†     |            baseline             |   ~25% faster    |          0-50% slower          |
 |   Any DP-allowed†† layers    |          Not supported          |  Not supported   |           Supported            |
 |   Most popular nn.* layers   |            Supported            |    Supported     |           Supported            | 

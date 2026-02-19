@@ -58,7 +58,7 @@ class MixedPrecisionTest(unittest.TestCase):
         dataloader: DataLoader,
         grad_sample_mode: str,
         dtype: torch.dtype,
-        wrap_model: bool = True,
+        attach_only: bool = False,
     ):
         """
         Return training components (model, optimizer, criterion, dataloader) wrapped by PrivacyEngine.
@@ -74,7 +74,7 @@ class MixedPrecisionTest(unittest.TestCase):
 
         # Make the model private with the specified precision
         if grad_sample_mode in ["hooks", "functorch", "ew"]:
-            hooks_or_gs_module, optimizer, dataloader = privacy_engine.make_private(
+            hooks_or_module, optimizer, dataloader = privacy_engine.make_private(
                 module=model,
                 optimizer=optimizer,
                 data_loader=dataloader,
@@ -82,10 +82,10 @@ class MixedPrecisionTest(unittest.TestCase):
                 max_grad_norm=1,
                 grad_sample_mode=grad_sample_mode,
                 poisson_sampling=False,
-                wrap_model=wrap_model,
+                attach_only=attach_only,
             )
         elif grad_sample_mode == "ghost":
-            hooks_or_gs_module, optimizer, criterion, dataloader = (
+            hooks_or_module, optimizer, criterion, dataloader = (
                 privacy_engine.make_private(
                     module=model,
                     optimizer=optimizer,
@@ -95,12 +95,12 @@ class MixedPrecisionTest(unittest.TestCase):
                     noise_multiplier=1,
                     grad_sample_mode="ghost",
                     poisson_sampling=False,
-                    wrap_model=wrap_model,
+                    attach_only=attach_only,
                 )
             )
 
-        if wrap_model:
-            model = hooks_or_gs_module
+        if not attach_only:
+            model = hooks_or_module
 
         return model, optimizer, criterion, dataloader
 
@@ -110,7 +110,7 @@ class MixedPrecisionTest(unittest.TestCase):
         dataloader: DataLoader,
         dtype: torch.dtype,
         grad_sample_mode: str = "hooks",
-        wrap_model: bool = True,
+        attach_only: bool = False,
     ):
         """
         Integration test for training a model with mixed precison (FP32+FP16 or FP32+BF16).
@@ -125,7 +125,7 @@ class MixedPrecisionTest(unittest.TestCase):
             dataloader (DataLoader): DataLoader providing the training data.
             dtype (torch.dtype): The lower data type for mixed precision training (torch.float16 or torch.bfloat16).
             grad_sample_mode (str): The mode for per-sample gradient computation, options include "hooks", "functorch", "ew", and "ghost".
-            wrap_model (bool): Whether to wrap the model or use hooks.
+            attach_only (bool): Whether to use attach-only mode.
         """
 
         model, optimizer, criterion, dataloader = self._get_training_components(
@@ -133,7 +133,7 @@ class MixedPrecisionTest(unittest.TestCase):
             dataloader,
             grad_sample_mode,
             dtype=torch.float32,
-            wrap_model=wrap_model,
+            attach_only=attach_only,
         )
         # model weights should be in high precision (fp32)
         for p in model.parameters():
@@ -169,7 +169,7 @@ class MixedPrecisionTest(unittest.TestCase):
         dataloader: DataLoader,
         dtype: torch.dtype,
         grad_sample_mode: str = "hooks",
-        wrap_model: bool = True,
+        attach_only: bool = False,
     ):
         """
         Runs an integration test for low precision training (BF16 or FP16).
@@ -180,11 +180,11 @@ class MixedPrecisionTest(unittest.TestCase):
             dataloader (DataLoader): DataLoader providing the training data.
             dtype (torch.dtype): The data type for low precision training (torch.float16 or torch.bfloat16).
             grad_sample_mode (str): The mode for per-sample gradient computation, options include "hooks", "functorch", "ew", and "ghost".
-            wrap_model (bool): Whether to wrap the model or use hooks.
+            attach_only (bool): Whether to use attach-only mode.
         """
 
         model, optimizer, criterion, dataloader = self._get_training_components(
-            model, dataloader, grad_sample_mode, dtype=dtype, wrap_model=wrap_model
+            model, dataloader, grad_sample_mode, dtype=dtype, attach_only=attach_only
         )
 
         for p in model.parameters():
@@ -253,14 +253,14 @@ class MixedPrecisionTest(unittest.TestCase):
     ):
         # Test with low precision
         for grad_sample_mode in ["hooks", "ghost", "functorch", "ew"]:
-            for wrap_model in [True, False]:
-                if not wrap_model and grad_sample_mode == "ew":
+            for attach_only in [False, True]:
+                if attach_only and grad_sample_mode == "ew":
                     continue
 
                 for dtype in low_precision_type:
                     with self.subTest(
                         grad_sample_mode=grad_sample_mode,
-                        wrap_model=wrap_model,
+                        attach_only=attach_only,
                         dtype=dtype,
                     ):
                         # skip test for models with layers not supported by ew
@@ -278,11 +278,11 @@ class MixedPrecisionTest(unittest.TestCase):
                         ):
                             continue
                         self._train_low_precision(
-                            model=model_class(**model_kwargs),  # Create a fresh model
+                            model=model_class(**model_kwargs),
                             dataloader=dataloader,
                             dtype=dtype,
                             grad_sample_mode=grad_sample_mode,
-                            wrap_model=wrap_model,
+                            attach_only=attach_only,
                         )
 
     def _test_mixed_precision_all_modes(
@@ -290,11 +290,11 @@ class MixedPrecisionTest(unittest.TestCase):
     ):
         # Test mixed FP32 + BF16/FP16
         for grad_sample_mode in ["hooks", "ghost", "functorch"]:
-            for wrap_model in [True, False]:
+            for attach_only in [False, True]:
                 for dtype in low_precision_type:
                     with self.subTest(
                         grad_sample_mode=grad_sample_mode,
-                        wrap_model=wrap_model,
+                        attach_only=attach_only,
                         dtype=dtype,
                     ):
                         if (
@@ -303,11 +303,11 @@ class MixedPrecisionTest(unittest.TestCase):
                         ):
                             continue
                         self._train_mixed_precision(
-                            model=model_class(**model_kwargs),  # Create a fresh model
+                            model=model_class(**model_kwargs),
                             dataloader=dataloader,
                             dtype=dtype,
                             grad_sample_mode=grad_sample_mode,
-                            wrap_model=wrap_model,
+                            attach_only=attach_only,
                         )
 
     @unittest.skipIf(not torch.cuda.is_available(), "CUDA not available, skipping test")

@@ -177,14 +177,14 @@ class PrivacyEngine:
         max_grad_norm: Union[float, List[float]] = 1.0,
         loss_reduction: str = "mean",
         grad_sample_mode: str = "hooks",
-        wrap_model: bool = True,
+        attach_only: bool = False,
     ) -> Union[AbstractGradSampleModule, GradSampleHooks]:
         # Ideally, validation should have been taken care of by calling
         # `get_compatible_module()`
         self.validate(module=module, optimizer=None, data_loader=None)
 
         # wrap
-        if wrap_model and isinstance(module, AbstractGradSampleModule):
+        if not attach_only and isinstance(module, AbstractGradSampleModule):
             if (
                 module.batch_first != batch_first
                 or module.loss_reduction != loss_reduction
@@ -206,7 +206,7 @@ class PrivacyEngine:
                     batch_first=batch_first,
                     loss_reduction=loss_reduction,
                     max_grad_norm=max_grad_norm,
-                    wrap_model=wrap_model,
+                    attach_only=attach_only,
                 )
             else:
                 return wrap_model_fn(
@@ -214,7 +214,7 @@ class PrivacyEngine:
                     grad_sample_mode=grad_sample_mode,
                     batch_first=batch_first,
                     loss_reduction=loss_reduction,
-                    wrap_model=wrap_model,
+                    attach_only=attach_only,
                 )
 
     def _prepare_criterion(
@@ -313,7 +313,7 @@ class PrivacyEngine:
         clipping: str = "flat",
         noise_generator=None,
         grad_sample_mode: str = "hooks",
-        wrap_model: bool = True,
+        attach_only: bool = False,
         **kwargs,
     ) -> Union[
         Tuple[
@@ -374,16 +374,20 @@ class PrivacyEngine:
                 implementation class for the wrapped ``module``. See
                 :class:`~opacus.grad_sample.gsm_base.AbstractGradSampleModule` for more
                 details
+            attach_only: If True, attaches hooks directly to the module without wrapping.
+                If False (default), wraps the module in a GradSampleModule.
+                Use attach_only=True for compatibility with HuggingFace Transformers
+                and models with custom __getattr__ that don't work well with wrapping.
 
         Returns:
             Tuple of (hooks_or_module, optimizer, data_loader) or (hooks_or_module, optimizer, criterion, data_loader).
 
             Returns a hooks object for gradient sampling and cleanup:
-            - If wrap_model=True: Returns GradSampleModule wrapper (use as your model)
-            - If wrap_model=False: Returns GradSampleHooks object (use your original model directly,
+            - If attach_only=False (default): Returns wrapped GradSampleModule (use as your module)
+            - If attach_only=True: Returns GradSampleHooks object (use your original module directly,
               use returned hooks only for cleanup)
 
-            The hooks object provides .cleanup() method. In non-wrapping mode, the original model
+            The hooks object provides .cleanup() method. In attach-only mode, the original module
             passed to make_private() is unchanged - continue using it normally.
 
             Optimizer is a wrapper around the original optimizer that also does
@@ -415,7 +419,7 @@ class PrivacyEngine:
             max_grad_norm=max_grad_norm,
             loss_reduction=loss_reduction,
             grad_sample_mode=grad_sample_mode,
-            wrap_model=wrap_model,
+            attach_only=attach_only,
         )
         if poisson_sampling:
             module.forbid_grad_accumulation()
@@ -478,7 +482,7 @@ class PrivacyEngine:
         clipping: str = "flat",
         noise_generator=None,
         grad_sample_mode: str = "hooks",
-        wrap_model: bool = True,
+        attach_only: bool = False,
         **kwargs,
     ) -> Union[
         Tuple[
@@ -532,21 +536,20 @@ class PrivacyEngine:
                 implementation class for the wrapped ``module``. See
                 :class:`~opacus.grad_sample.gsm_base.AbstractGradSampleModule` for more
                 details
-            wrap_model: If True (default), wraps module in GradSampleModule.
-                If False, uses non-wrapping mode - attaches hooks directly to the provided model
-                without wrapping. The original model remains unchanged and can be used normally.
-                Cleanup via returned hooks.cleanup() is required when done. Recommended for
-                HuggingFace Transformers and models with custom __getattr__ that don't work well with wrapping.
+            attach_only: If True, attaches hooks directly to the module without wrapping.
+                If False (default), wraps the module in a GradSampleModule.
+                Use attach_only=True for compatibility with HuggingFace Transformers
+                and models with custom __getattr__ that don't work well with wrapping.
 
         Returns:
             Tuple of (hooks_or_module, optimizer, data_loader) or (hooks_or_module, optimizer, criterion, data_loader).
 
             Returns a hooks object for gradient sampling and cleanup:
-            - If wrap_model=True: Returns GradSampleModule wrapper (use as your model)
-            - If wrap_model=False: Returns GradSampleHooks object (use your original model directly,
+            - If attach_only=False (default): Returns wrapped GradSampleModule (use as your module)
+            - If attach_only=True: Returns GradSampleHooks object (use your original module directly,
               use returned hooks only for cleanup)
 
-            The hooks object provides .cleanup() method. In non-wrapping mode, the original model
+            The hooks object provides .cleanup() method. In attach-only mode, the original module
             passed to make_private() is unchanged - continue using it normally.
 
             Optimizer is a wrapper around the original optimizer that also does
@@ -586,7 +589,7 @@ class PrivacyEngine:
             grad_sample_mode=grad_sample_mode,
             poisson_sampling=poisson_sampling,
             clipping=clipping,
-            wrap_model=wrap_model,
+            attach_only=attach_only,
             **kwargs,
         )
 

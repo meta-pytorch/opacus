@@ -35,7 +35,7 @@ def _get_training_components(
     model_kwargs: dict[str, int],
     device: torch.device,
     grad_sample_mode: str,
-    wrap_model: bool = True,
+    attach_only: bool = False,
 ):
     """
     Creates a model, optimizer, criterion, and dataloader for training.
@@ -66,13 +66,13 @@ def _get_training_components(
 
     privacy_engine = PrivacyEngine()
 
-    if wrap_model:
+    if not attach_only:
         model = DPDDP(model)
     else:
         model = DDP(model, device_ids=[device.index])
 
     if grad_sample_mode in ["hooks", "functorch", "ew"]:
-        hooks_or_gs_module, optimizer, dataloader = privacy_engine.make_private(
+        hooks_or_module, optimizer, dataloader = privacy_engine.make_private(
             module=model,
             optimizer=optimizer,
             data_loader=dataloader,
@@ -80,10 +80,10 @@ def _get_training_components(
             max_grad_norm=1,
             grad_sample_mode=grad_sample_mode,
             poisson_sampling=False,
-            wrap_model=wrap_model,
+            attach_only=attach_only,
         )
     elif grad_sample_mode == "ghost":
-        hooks_or_gs_module, optimizer, criterion, dataloader = (
+        hooks_or_module, optimizer, criterion, dataloader = (
             privacy_engine.make_private(
                 module=model,
                 optimizer=optimizer,
@@ -93,12 +93,12 @@ def _get_training_components(
                 noise_multiplier=1,
                 grad_sample_mode="ghost",
                 poisson_sampling=False,
-                wrap_model=wrap_model,
+                attach_only=attach_only,
             )
         )
 
-    if wrap_model:
-        model = hooks_or_gs_module
+    if not attach_only:
+        model = hooks_or_module
 
     return model, optimizer, criterion, dataloader
 
@@ -110,7 +110,7 @@ def run_mixed_precision_test(
     model_kwargs: dict[str, int],
     dtype: torch.dtype,
     grad_sample_mode: str,
-    wrap_model: bool = True,
+    attach_only: bool = False,
 ):
     """
     Runs an integration test for distributed training with DPDDP and mixed precision training.
@@ -127,14 +127,14 @@ def run_mixed_precision_test(
         model_kwargs (dict): The keyword arguments for the model.
         dtype (torch.dtype): The data type for low precision training (torch.float16 or torch.bfloat16).
         grad_sample_mode (str): The mode for per-sample gradient computation.
-        wrap_model (bool): Whether to wrap the model or use hooks.
+        attach_only (bool): Whether to use attach-only mode.
     """
 
     setup(rank, world_size)
     device = torch.device(f"cuda:{rank}")
 
     model, optimizer, criterion, dataloader = _get_training_components(
-        model_class, model_kwargs, device, grad_sample_mode, wrap_model=wrap_model
+        model_class, model_kwargs, device, grad_sample_mode, attach_only=attach_only
     )
 
     # Model weights should be in high precision (fp32)
@@ -179,7 +179,7 @@ def run_low_precision_test(
     model_kwargs: dict[str, int],
     dtype: torch.dtype,
     grad_sample_mode: str,
-    wrap_model: bool = True,
+    attach_only: bool = False,
 ):
     """
     Runs an integration test for distributed training with DPDDP and low precision training.
@@ -192,13 +192,13 @@ def run_low_precision_test(
         model_kwargs (dict): The keyword arguments for the model.
         dtype (torch.dtype): The data type for low precision training (torch.float16 or torch.bfloat16).
         grad_sample_mode (str): The mode for per-sample gradient computation.
-        wrap_model (bool): Whether to wrap the model or use hooks.
+        attach_only (bool): Whether to use attach-only mode.
     """
     setup(rank, world_size)
     device = torch.device(f"cuda:{rank}")
 
     model, optimizer, criterion, dataloader = _get_training_components(
-        model_class, model_kwargs, device, grad_sample_mode, wrap_model=wrap_model
+        model_class, model_kwargs, device, grad_sample_mode, attach_only=attach_only
     )
 
     # Model weights should be in low precision
@@ -276,16 +276,16 @@ class MultiGPUPrecisionTest(unittest.TestCase):
             world_size = 2
             # test low precision training
             for grad_sample_mode in ["ew", "functorch", "hooks", "ghost"]:
-                for wrap_model in [True, False]:
-                    # "ew" is not supported for EmbeddingModel or wrap_model=False
+                for attach_only in [False, True]:
+                    # "ew" is not supported for EmbeddingModel or attach_only=True
                     if grad_sample_mode == "ew" and (
-                        model_class == EmbeddingModel or not wrap_model
+                        model_class == EmbeddingModel or attach_only
                     ):
                         continue
                     with self.subTest(
                         model_class=model_class,
                         grad_sample_mode=grad_sample_mode,
-                        wrap_model=wrap_model,
+                        attach_only=attach_only,
                         precision="low",
                     ):
                         mp.spawn(
@@ -296,7 +296,7 @@ class MultiGPUPrecisionTest(unittest.TestCase):
                                 model_kwargs,
                                 dtype,
                                 grad_sample_mode,
-                                wrap_model,
+                                attach_only,
                             ),
                             nprocs=world_size,
                             join=True,
@@ -304,11 +304,11 @@ class MultiGPUPrecisionTest(unittest.TestCase):
 
             # test mixed precision training
             for grad_sample_mode in ["functorch", "hooks", "ghost"]:
-                for wrap_model in [True, False]:
+                for attach_only in [False, True]:
                     with self.subTest(
                         model_class=model_class,
                         grad_sample_mode=grad_sample_mode,
-                        wrap_model=wrap_model,
+                        attach_only=attach_only,
                         precision="mixed",
                     ):
                         mp.spawn(
@@ -319,7 +319,7 @@ class MultiGPUPrecisionTest(unittest.TestCase):
                                 model_kwargs,
                                 dtype,
                                 grad_sample_mode,
-                                wrap_model,
+                                attach_only,
                             ),
                             nprocs=world_size,
                             join=True,

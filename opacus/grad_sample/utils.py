@@ -92,14 +92,26 @@ def register_norm_sampler(
 def wrap_model(
     model: nn.Module,
     grad_sample_mode: str,
-    wrap_model: bool = True,
+    attach_only: bool = False,
     *args,
     **kwargs,
 ):
+    """
+    Wraps the model for gradient sample computation.
+
+    Args:
+        model: The nn.Module to wrap
+        grad_sample_mode: The gradient sampling mode
+        attach_only: If True, attaches hooks without wrapping in a Module.
+            If False (default), wraps in a GradSampleModule subclass.
+
+    Returns:
+        Union[AbstractGradSampleModule, GradSampleHooks]: Wrapped module or hooks object
+    """
     if grad_sample_mode == "functorch":
         kwargs["force_functorch"] = True
 
-    if wrap_model:
+    if not attach_only:
         cls = get_gsm_class(grad_sample_mode)
     else:
         cls = get_hooks_class(grad_sample_mode)

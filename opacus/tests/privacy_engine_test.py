@@ -69,8 +69,8 @@ class BasePrivacyEngineTest(ABC):
         self.criterion = nn.CrossEntropyLoss()
         self.BATCH_FIRST = True
         self.GRAD_SAMPLE_MODE = "hooks"
-        self.WRAP_MODEL = (
-            True  # Default to True, override in subclasses for non-wrapping mode
+        self.ATTACH_ONLY = (
+            False  # Default to False, override in subclasses for attach-only mode
         )
 
         torch.manual_seed(42)
@@ -137,7 +137,7 @@ class BasePrivacyEngineTest(ABC):
 
         privacy_engine = PrivacyEngine(secure_mode=secure_mode)
 
-        hooks_or_gs_module, optimizer, poisson_dl = privacy_engine.make_private(
+        hooks_or_module, optimizer, poisson_dl = privacy_engine.make_private(
             module=model,
             optimizer=optimizer,
             data_loader=dl,
@@ -147,11 +147,11 @@ class BasePrivacyEngineTest(ABC):
             poisson_sampling=poisson_sampling,
             clipping=clipping,
             grad_sample_mode=grad_sample_mode,
-            wrap_model=self.WRAP_MODEL,
+            attach_only=self.ATTACH_ONLY,
         )
 
-        if self.WRAP_MODEL:
-            model = hooks_or_gs_module
+        if not self.ATTACH_ONLY:
+            model = hooks_or_module
 
         return model, optimizer, poisson_dl, privacy_engine
 
@@ -455,7 +455,7 @@ class BasePrivacyEngineTest(ABC):
         total_steps = epochs * len(dl)
 
         privacy_engine = PrivacyEngine()
-        hooks_or_gs_module, optimizer, poisson_dl = (
+        hooks_or_module, optimizer, poisson_dl = (
             privacy_engine.make_private_with_epsilon(
                 module=model,
                 optimizer=optimizer,
@@ -465,12 +465,12 @@ class BasePrivacyEngineTest(ABC):
                 epochs=epochs,
                 max_grad_norm=1.0,
                 grad_sample_mode=self.GRAD_SAMPLE_MODE,
-                wrap_model=self.WRAP_MODEL,
+                attach_only=not self.WRAP_MODEL,
             )
         )
 
         if self.WRAP_MODEL:
-            model = hooks_or_gs_module
+            model = hooks_or_module
 
         self._train_steps(model, optimizer, poisson_dl, max_steps=total_steps)
         self.assertAlmostEqual(
@@ -1038,7 +1038,7 @@ class PrivacyEngineCustomLayerTest(BasePrivacyEngineTest, unittest.TestCase):
 
 
 # ============================================================================
-# Hooks-based tests - Same tests but with wrap_model=False
+# Hooks-based tests - Same tests but with attach-only mode
 # ============================================================================
 
 
@@ -1047,7 +1047,7 @@ class PrivacyEngineConvNetHooksTest(PrivacyEngineConvNetTest):
 
     def setUp(self) -> None:
         super().setUp()
-        self.WRAP_MODEL = False
+        self.ATTACH_ONLY = True
 
 
 class PrivacyEngineConvNetFrozenHooksTest(PrivacyEngineConvNetFrozenTest):
@@ -1055,7 +1055,7 @@ class PrivacyEngineConvNetFrozenHooksTest(PrivacyEngineConvNetFrozenTest):
 
     def setUp(self) -> None:
         super().setUp()
-        self.WRAP_MODEL = False
+        self.ATTACH_ONLY = True
 
 
 class PrivacyEngineTextHooksTest(PrivacyEngineTextTest):
@@ -1063,7 +1063,7 @@ class PrivacyEngineTextHooksTest(PrivacyEngineTextTest):
 
     def setUp(self) -> None:
         super().setUp()
-        self.WRAP_MODEL = False
+        self.ATTACH_ONLY = True
 
 
 class PrivacyEngineTiedWeightsHooksTest(PrivacyEngineTiedWeightsTest):
@@ -1071,7 +1071,7 @@ class PrivacyEngineTiedWeightsHooksTest(PrivacyEngineTiedWeightsTest):
 
     def setUp(self) -> None:
         super().setUp()
-        self.WRAP_MODEL = False
+        self.ATTACH_ONLY = True
 
 
 class PrivacyEngineCustomLayerHooksTest(PrivacyEngineCustomLayerTest):
@@ -1079,4 +1079,4 @@ class PrivacyEngineCustomLayerHooksTest(PrivacyEngineCustomLayerTest):
 
     def setUp(self) -> None:
         super().setUp()
-        self.WRAP_MODEL = False
+        self.ATTACH_ONLY = True

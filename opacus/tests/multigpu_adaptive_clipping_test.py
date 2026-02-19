@@ -65,7 +65,7 @@ class ToyModel(nn.Module):
         return self.net2(self.relu(self.net1(x)))
 
 
-def demo_basic(rank, weight, world_size, dp, wrap_model=True):
+def demo_basic(rank, weight, world_size, dp, attach_only=False):
     torch.manual_seed(world_size)
     batch_size = 2
     setup(rank, world_size)
@@ -94,7 +94,7 @@ def demo_basic(rank, weight, world_size, dp, wrap_model=True):
     data_loader = DataLoader(dataset, batch_size=batch_size, sampler=sampler)
 
     if dp:
-        hooks_or_gs_module, optimizer, criterion, data_loader = (
+        hooks_or_module, optimizer, criterion, data_loader = (
             privacy_engine.make_private(
                 module=ddp_model,
                 optimizer=optimizer,
@@ -105,11 +105,11 @@ def demo_basic(rank, weight, world_size, dp, wrap_model=True):
                 poisson_sampling=False,
                 grad_sample_mode="ghost",
                 target_unclipped_quantile=1.0,
-                wrap_model=wrap_model,
+                attach_only=attach_only,
             )
         )
-        if wrap_model:
-            ddp_model = hooks_or_gs_module
+        if not attach_only:
+            ddp_model = hooks_or_module
         assert isinstance(optimizer, DistributedDPOptimizerFastGradientClipping)
 
     for x, y in data_loader:
@@ -124,10 +124,10 @@ def demo_basic(rank, weight, world_size, dp, wrap_model=True):
     cleanup()
 
 
-def run_demo(demo_fn, weight, world_size, dp, wrap_model=True):
+def run_demo(demo_fn, weight, world_size, dp, attach_only=False):
     mp.spawn(
         demo_fn,
-        args=(weight, world_size, dp, wrap_model),
+        args=(weight, world_size, dp, attach_only),
         nprocs=world_size,
         join=True,
     )
@@ -143,8 +143,8 @@ class GradientComputationTestAdaptiveClipping(unittest.TestCase):
             n_gpus >= 2, f"Need at least 2 gpus but was provided only {n_gpus}."
         )
 
-        for wrap_model in [True, False]:
-            with self.subTest(wrap_model=wrap_model):
+        for attach_only in [False, True]:
+            with self.subTest(attach_only=attach_only):
                 weight_dp, weight_nodp = torch.ones(10, 10), torch.ones(10, 10)
 
                 run_demo(
@@ -152,14 +152,14 @@ class GradientComputationTestAdaptiveClipping(unittest.TestCase):
                     weight_nodp,
                     2,
                     dp=False,
-                    wrap_model=wrap_model,
+                    attach_only=attach_only,
                 )
                 run_demo(
                     demo_basic,
                     weight_dp,
                     2,
                     dp=True,
-                    wrap_model=wrap_model,
+                    attach_only=attach_only,
                 )
 
                 self.assertTrue(
