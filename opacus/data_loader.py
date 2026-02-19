@@ -57,6 +57,11 @@ class CollateFnWithEmpty:
     Note:
         The first batch processed must be non-empty, as it defines the structure
         for all subsequent empty batches.
+
+        Only torch.Tensor, dict (Mapping), list, and tuple types are supported.
+        If your collate function returns other types, a TypeError will be raised
+        to preserve DP guarantees (returning non-empty data for empty batches
+        would violate the privacy guarantee).
     """
 
     def __init__(
@@ -112,8 +117,14 @@ class CollateFnWithEmpty:
             converted = [self._make_empty_batch(v) for v in sample]
             return type(sample)(converted)
 
-        # base case
-        return sample
+        # Unsupported type - raise error to preserve DP guarantees
+        raise TypeError(
+            f"Unsupported batch type: {type(sample).__name__}. "
+            f"CollateFnWithEmpty only supports batches containing torch.Tensor, "
+            f"dict (Mapping), list, or tuple types. "
+            f"If you need support for a different output type, please open an issue at "
+            f"https://github.com/JetBrains-Research/opacus/issues or submit a PR."
+        )
 
 
 def wrap_collate_with_empty(

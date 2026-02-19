@@ -291,3 +291,23 @@ class CollateFnWithEmptyTest(unittest.TestCase):
         self.assertEqual(len(empty_result), 2)
         self.assertEqual(empty_result[0].shape[0], 0)
         self.assertEqual(empty_result[1].shape[0], 0)
+
+    def test_unsupported_type_raises_error(self) -> None:
+        """Test that unsupported batch types raise TypeError to preserve DP guarantees"""
+        def custom_collate(batch):
+            # Custom collator that returns an unsupported type (e.g., string)
+            if len(batch) > 0:
+                return "unsupported_type"
+            return ""
+
+        collate_fn = CollateFnWithEmpty(custom_collate)
+
+        # First process non-empty batch
+        batch = [torch.tensor([1, 2])]
+        _ = collate_fn(batch)
+
+        # Empty batch should raise TypeError for unsupported type
+        with self.assertRaises(TypeError) as context:
+            collate_fn([])
+
+        self.assertIn("Unsupported batch type", str(context.exception))
