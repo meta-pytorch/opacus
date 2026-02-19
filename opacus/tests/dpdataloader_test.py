@@ -32,33 +32,42 @@ class DPDataLoaderTest(unittest.TestCase):
         y = torch.randint(low=0, high=self.num_classes, size=(self.data_size,))
 
         dataset = TensorDataset(x, y)
-        # Use moderate sample rate to get non-empty batches
-        data_loader = DPDataLoader(dataset, sample_rate=0.5)
+        # Use seeded generator with low sample rate to produce empty batches deterministically
+        # seed=0, sample_rate=0.1 produces non-empty first batch followed by empty batches
+        generator = torch.Generator().manual_seed(0)
+        data_loader = DPDataLoader(dataset, sample_rate=0.1, generator=generator)
 
         # Process batches - verify structure is preserved
         first_batch = next(iter(data_loader))
         x_b, y_b = first_batch
 
-        # Verify first batch has proper structure
+        # First batch must be non-empty (to learn structure)
+        self.assertGreater(x_b.size(0), 0, "First batch must be non-empty")
         self.assertEqual(len(x_b.shape), 2)
         self.assertEqual(x_b.shape[1], self.dimension)
 
-        # Process all batches to verify no errors occur
+        # Process all batches and verify at least one is empty
         batch_count = 1
+        empty_batch_found = False
         for batch in data_loader:
             x_b, y_b = batch
+            batch_size = x_b.size(0)
+
             # Batch dimension should be 0 or positive
-            self.assertGreaterEqual(x_b.size(0), 0)
+            self.assertGreaterEqual(batch_size, 0)
             self.assertGreaterEqual(y_b.size(0), 0)
-            # Other dimensions should be preserved
-            if x_b.size(0) > 0:
+
+            if batch_size == 0:
+                empty_batch_found = True
+                # Empty batch should still have correct feature dimension
                 self.assertEqual(x_b.shape[1], self.dimension)
             else:
-                # Empty batch should still have correct feature dimension
+                # Non-empty batch should have correct dimensions
                 self.assertEqual(x_b.shape[1], self.dimension)
             batch_count += 1
 
-        # Should have processed multiple batches
+        # Verify we actually tested empty batch handling
+        self.assertTrue(empty_batch_found, "No empty batches produced - test doesn't verify empty batch handling")
         self.assertGreater(batch_count, 1)
 
     def test_collate_tensor(self) -> None:
@@ -66,24 +75,37 @@ class DPDataLoaderTest(unittest.TestCase):
         x = torch.randn(self.data_size, self.dimension)
 
         dataset = TensorDataset(x)
-        # Use moderate sample rate to get batches
-        data_loader = DPDataLoader(dataset, sample_rate=0.5)
+        # Use seeded generator with low sample rate to produce empty batches deterministically
+        # seed=0, sample_rate=0.1 produces non-empty first batch followed by empty batches
+        generator = torch.Generator().manual_seed(0)
+        data_loader = DPDataLoader(dataset, sample_rate=0.1, generator=generator)
         first_batch = next(iter(data_loader))
         (s,) = first_batch
 
-        # Verify structure
+        # First batch must be non-empty (to learn structure)
+        self.assertGreater(s.size(0), 0, "First batch must be non-empty")
         self.assertEqual(s.shape[1], self.dimension)
 
-        # Process all batches
+        # Process all batches and verify at least one is empty
         batch_count = 1
+        empty_batch_found = False
         for batch in data_loader:
             (s,) = batch
-            self.assertGreaterEqual(s.size(0), 0)
-            # Dimension should be preserved regardless of batch size
-            self.assertEqual(s.shape[1], self.dimension)
+            batch_size = s.size(0)
+
+            self.assertGreaterEqual(batch_size, 0)
+
+            if batch_size == 0:
+                empty_batch_found = True
+                # Empty batch should still have correct feature dimension
+                self.assertEqual(s.shape[1], self.dimension)
+            else:
+                # Non-empty batch should have correct dimensions
+                self.assertEqual(s.shape[1], self.dimension)
             batch_count += 1
 
-        # Should have processed multiple batches
+        # Verify we actually tested empty batch handling
+        self.assertTrue(empty_batch_found, "No empty batches produced - test doesn't verify empty batch handling")
         self.assertGreater(batch_count, 1)
 
     def test_drop_last_true(self) -> None:
