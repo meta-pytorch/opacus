@@ -94,7 +94,7 @@ def demo_basic(rank, weight, world_size, dp, wrap_model=True):
     data_loader = DataLoader(dataset, batch_size=batch_size, sampler=sampler)
 
     if dp:
-        hooks_or_wrapper, optimizer, criterion, data_loader = (
+        hooks_or_gs_module, optimizer, criterion, data_loader = (
             privacy_engine.make_private(
                 module=ddp_model,
                 optimizer=optimizer,
@@ -109,7 +109,7 @@ def demo_basic(rank, weight, world_size, dp, wrap_model=True):
             )
         )
         if wrap_model:
-            ddp_model = hooks_or_wrapper
+            ddp_model = hooks_or_gs_module
         assert isinstance(optimizer, DistributedDPOptimizerFastGradientClipping)
 
     for x, y in data_loader:

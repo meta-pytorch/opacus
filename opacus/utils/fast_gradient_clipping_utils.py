@@ -39,7 +39,7 @@ class DPTensorFastGradientClipping:
     ):
         """
         Args:
-            module: the module or hooks to train
+            module: the (GradSample) module to train or hooks handling object
             optimizer: the optimizer used to train the module
             loss_per_sample: loss on each sample in the mini-batch of size [batch_size, 1]
         """
@@ -98,10 +98,6 @@ class DPLossFastGradientClipping:
             "sum",
         ], "loss_reduction should be either 'mean' or 'sum'"
 
-        # if the criterion is missing reduction attribute, use module's reduction attribute'
-        if not hasattr(criterion, "reduction"):
-            setattr(criterion, "reduction", module.loss_reduction)
-
         assert (
             loss_reduction
             == criterion.reduction
@@ -118,12 +114,8 @@ class DPLossFastGradientClipping:
         """
         Redefining the forward function to compute per-sample loss and wrap it in DPTensorFastGradientClipping
         """
-        old_reduction = self.criterion.reduction
-        self.criterion.reduction = "none"
-        try:
-            loss_per_sample = self.criterion(*args, **kwargs)
-        finally:
-            self.criterion.reduction = old_reduction
+
+        loss_per_sample = self.criterion(*args, **kwargs)
 
         if shape is not None and loss_per_sample.shape[0] == shape[0] * shape[1]:
             # Note that the privacy unit for generative NLP tasks is per sequence.

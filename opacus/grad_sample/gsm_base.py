@@ -116,12 +116,11 @@ class AbstractGradSampleHooks(ABC):
         """
         try:
             self.remove_hooks()
-        except ValueError:
-            pass
-        for attr in OPACUS_PARAM_MONKEYPATCH_ATTRS:
-            for p in self._module.parameters():
-                if hasattr(p, attr):
-                    delattr(p, attr)
+        finally:
+            for attr in OPACUS_PARAM_MONKEYPATCH_ATTRS:
+                for p in self._module.parameters():
+                    if hasattr(p, attr):
+                        delattr(p, attr)
 
 
 class AbstractGradSampleModule(nn.Module, AbstractGradSampleHooks, ABC):

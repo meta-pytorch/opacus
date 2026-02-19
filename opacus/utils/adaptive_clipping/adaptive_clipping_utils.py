@@ -19,6 +19,9 @@ from opacus.grad_sample import GradSampleModule
 from opacus.grad_sample.grad_sample_module_fast_gradient_clipping import (
     GradSampleModuleFastGradientClipping,
 )
+from opacus.grad_sample import (
+    GradSampleHooksFastGradientClipping,
+)
 from opacus.optimizers import DPOptimizerFastGradientClipping
 from opacus.privacy_engine import PrivacyEngine
 from opacus.utils.fast_gradient_clipping_utils import (
@@ -26,6 +29,7 @@ from opacus.utils.fast_gradient_clipping_utils import (
     DPTensorFastGradientClipping,
 )
 from torch.nn.parallel import DistributedDataParallel as DDP
+from typing import Union
 
 
 class DPTensorFastGradientAdaptiveClipping(DPTensorFastGradientClipping):
@@ -37,7 +41,9 @@ class DPTensorFastGradientAdaptiveClipping(DPTensorFastGradientClipping):
 
     def __init__(
         self,
-        module: GradSampleModuleFastGradientClipping,
+        module: Union[
+            GradSampleModuleFastGradientClipping, GradSampleHooksFastGradientClipping
+        ],
         optimizer: DPOptimizerFastGradientClipping,
         loss_per_sample: torch.Tensor,
         loss_reduction: str = "mean",
@@ -50,7 +56,7 @@ class DPTensorFastGradientAdaptiveClipping(DPTensorFastGradientClipping):
         """
 
         Args:
-            module: the module to train
+            module: the (GradSample) module to train or hooks handling object
             optimizer: the optimizer used to train the module
             loss_per_sample: loss on each sample in the mini-batch of size [batch_size, 1]
             target_unclipped_quantile: target quantile for unclipped gradients, between 0 and 1
@@ -240,7 +246,7 @@ class PrivacyEngineAdaptiveClipping(PrivacyEngine):
     def _prepare_criterion(
         self,
         *,
-        module: GradSampleModule,
+        module: Union[GradSampleModule, GradSampleHooksFastGradientClipping],
         optimizer: DPOptimizerFastGradientClipping,
         criterion=torch.nn.CrossEntropyLoss(),
         loss_reduction: str = "mean",
@@ -252,7 +258,7 @@ class PrivacyEngineAdaptiveClipping(PrivacyEngine):
     ) -> DPLossFastGradientAdaptiveClipping:
         """
         Args:
-            module: the module to train
+            module: the (GradSample) module to train or hooks handling object
             optimizer: the optimizer used to train the module
             criterion: the loss function used to train the module
             loss_reduction: "mean" or "sum", indicates if the loss reduction (for aggregating the gradients)

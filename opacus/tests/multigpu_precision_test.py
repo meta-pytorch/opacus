@@ -72,7 +72,7 @@ def _get_training_components(
         model = DDP(model, device_ids=[device.index])
 
     if grad_sample_mode in ["hooks", "functorch", "ew"]:
-        hooks_or_wrapper, optimizer, dataloader = privacy_engine.make_private(
+        hooks_or_gs_module, optimizer, dataloader = privacy_engine.make_private(
             module=model,
             optimizer=optimizer,
             data_loader=dataloader,
@@ -83,7 +83,7 @@ def _get_training_components(
             wrap_model=wrap_model,
         )
     elif grad_sample_mode == "ghost":
-        hooks_or_wrapper, optimizer, criterion, dataloader = (
+        hooks_or_gs_module, optimizer, criterion, dataloader = (
             privacy_engine.make_private(
                 module=model,
                 optimizer=optimizer,
@@ -98,7 +98,7 @@ def _get_training_components(
         )
 
     if wrap_model:
-        model = hooks_or_wrapper
+        model = hooks_or_gs_module
 
     return model, optimizer, criterion, dataloader
 
