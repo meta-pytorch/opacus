@@ -137,7 +137,7 @@ class BasePrivacyEngineTest(ABC):
 
         privacy_engine = PrivacyEngine(secure_mode=secure_mode)
 
-        hooks_or_wrapper, optimizer, poisson_dl = privacy_engine.make_private(
+        hooks_or_gs_module, optimizer, poisson_dl = privacy_engine.make_private(
             module=model,
             optimizer=optimizer,
             data_loader=dl,
@@ -151,7 +151,7 @@ class BasePrivacyEngineTest(ABC):
         )
 
         if self.WRAP_MODEL:
-            model = hooks_or_wrapper
+            model = hooks_or_gs_module
 
         return model, optimizer, poisson_dl, privacy_engine
 
@@ -455,7 +455,7 @@ class BasePrivacyEngineTest(ABC):
         total_steps = epochs * len(dl)
 
         privacy_engine = PrivacyEngine()
-        hooks_or_wrapper, optimizer, poisson_dl = (
+        hooks_or_gs_module, optimizer, poisson_dl = (
             privacy_engine.make_private_with_epsilon(
                 module=model,
                 optimizer=optimizer,
@@ -470,7 +470,7 @@ class BasePrivacyEngineTest(ABC):
         )
 
         if self.WRAP_MODEL:
-            model = hooks_or_wrapper
+            model = hooks_or_gs_module
 
         self._train_steps(model, optimizer, poisson_dl, max_steps=total_steps)
         self.assertAlmostEqual(

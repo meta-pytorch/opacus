@@ -74,7 +74,7 @@ class MixedPrecisionTest(unittest.TestCase):
 
         # Make the model private with the specified precision
         if grad_sample_mode in ["hooks", "functorch", "ew"]:
-            hooks_or_wrapper, optimizer, dataloader = privacy_engine.make_private(
+            hooks_or_gs_module, optimizer, dataloader = privacy_engine.make_private(
                 module=model,
                 optimizer=optimizer,
                 data_loader=dataloader,
@@ -85,7 +85,7 @@ class MixedPrecisionTest(unittest.TestCase):
                 wrap_model=wrap_model,
             )
         elif grad_sample_mode == "ghost":
-            hooks_or_wrapper, optimizer, criterion, dataloader = (
+            hooks_or_gs_module, optimizer, criterion, dataloader = (
                 privacy_engine.make_private(
                     module=model,
                     optimizer=optimizer,
@@ -100,7 +100,7 @@ class MixedPrecisionTest(unittest.TestCase):
             )
 
         if wrap_model:
-            model = hooks_or_wrapper
+            model = hooks_or_gs_module
 
         return model, optimizer, criterion, dataloader
 

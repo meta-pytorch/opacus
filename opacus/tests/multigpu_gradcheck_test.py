@@ -153,7 +153,7 @@ def demo_basic(
     if dp:
         if clipping == "per_layer":
             max_grad_norm = [max_grad_norm for _ in model.parameters()]
-        hooks_or_wrapper, optimizer, data_loader = privacy_engine.make_private(
+        hooks_or_gs_module, optimizer, data_loader = privacy_engine.make_private(
             module=ddp_model,
             optimizer=optimizer,
             data_loader=data_loader,
@@ -165,7 +165,7 @@ def demo_basic(
             wrap_model=wrap_model,
         )
         if wrap_model:
-            ddp_model = hooks_or_wrapper
+            ddp_model = hooks_or_gs_module
 
         if clipping == "per_layer":
             assert isinstance(optimizer, SimpleDistributedPerLayerOptimizer)
