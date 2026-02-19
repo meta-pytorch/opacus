@@ -21,7 +21,12 @@ from typing import Callable, Optional
 import torch
 from torch.optim import Optimizer
 
-from .optimizer import DPOptimizer
+from .optimizer import (
+    DPOptimizer,
+    _check_processed_flag,
+    _generate_noise,
+    _mark_as_processed,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -188,3 +193,32 @@ class DPOptimizerFastGradientClipping(DPOptimizer):
         Redefines a parent class' function to not do anything
         """
         pass
+
+    def add_noise(self):
+        """
+        Adds noise to gradients. Stores noised result in ``p.grad``.
+
+        Uses ``_adjusted_noise_multiplier`` if set (for adaptive clipping),
+        otherwise falls back to ``noise_multiplier``. This separation ensures
+        correct privacy accounting when using adaptive clipping, where the
+        original noise_multiplier is preserved for accounting while the
+        adjusted value is used only for noise generation.
+        """
+        # Use adjusted noise multiplier if set (for adaptive clipping),
+        # otherwise use the standard noise_multiplier
+        effective_noise_multiplier = getattr(
+            self, "_adjusted_noise_multiplier", self.noise_multiplier
+        )
+
+        for p in self.params:
+            _check_processed_flag(p.summed_grad)
+
+            noise = _generate_noise(
+                std=effective_noise_multiplier * self.max_grad_norm,
+                reference=p.summed_grad,
+                generator=self.generator,
+                secure_mode=self.secure_mode,
+            )
+            p.grad = (p.summed_grad + noise).view_as(p)
+
+            _mark_as_processed(p.summed_grad)

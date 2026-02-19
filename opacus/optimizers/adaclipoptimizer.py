@@ -27,7 +27,6 @@ from .optimizer import (
     _mark_as_processed,
 )
 
-
 logger = logging.getLogger(__name__)
 
 
