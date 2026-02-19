@@ -123,7 +123,7 @@ class CollateFnWithEmpty:
             f"CollateFnWithEmpty only supports batches containing torch.Tensor, "
             f"dict (Mapping), list, or tuple types. "
             f"If you need support for a different output type, please open an issue at "
-            f"https://github.com/JetBrains-Research/opacus/issues or submit a PR."
+            f"https://github.com/meta-pytorch/opacus/issues or submit a PR."
         )
 
 
