@@ -13,14 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Union
+
 import torch
 from opacus.distributed import DifferentiallyPrivateDistributedDataParallel as DPDDP
-from opacus.grad_sample import GradSampleModule
+from opacus.grad_sample import GradSampleHooksFastGradientClipping, GradSampleModule
 from opacus.grad_sample.grad_sample_module_fast_gradient_clipping import (
     GradSampleModuleFastGradientClipping,
-)
-from opacus.grad_sample import (
-    GradSampleHooksFastGradientClipping,
 )
 from opacus.optimizers import DPOptimizerFastGradientClipping
 from opacus.privacy_engine import PrivacyEngine
@@ -29,7 +28,6 @@ from opacus.utils.fast_gradient_clipping_utils import (
     DPTensorFastGradientClipping,
 )
 from torch.nn.parallel import DistributedDataParallel as DDP
-from typing import Union
 
 
 class DPTensorFastGradientAdaptiveClipping(DPTensorFastGradientClipping):

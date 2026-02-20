@@ -83,18 +83,16 @@ def _get_training_components(
             attach_only=attach_only,
         )
     elif grad_sample_mode == "ghost":
-        hooks_or_module, optimizer, criterion, dataloader = (
-            privacy_engine.make_private(
-                module=model,
-                optimizer=optimizer,
-                data_loader=dataloader,
-                criterion=criterion,
-                max_grad_norm=1,
-                noise_multiplier=1,
-                grad_sample_mode="ghost",
-                poisson_sampling=False,
-                attach_only=attach_only,
-            )
+        hooks_or_module, optimizer, criterion, dataloader = privacy_engine.make_private(
+            module=model,
+            optimizer=optimizer,
+            data_loader=dataloader,
+            criterion=criterion,
+            max_grad_norm=1,
+            noise_multiplier=1,
+            grad_sample_mode="ghost",
+            poisson_sampling=False,
+            attach_only=attach_only,
         )
 
     if not attach_only:
