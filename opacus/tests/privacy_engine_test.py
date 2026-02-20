@@ -465,11 +465,11 @@ class BasePrivacyEngineTest(ABC):
                 epochs=epochs,
                 max_grad_norm=1.0,
                 grad_sample_mode=self.GRAD_SAMPLE_MODE,
-                attach_only=not self.WRAP_MODEL,
+                attach_only=self.ATTACH_ONLY,
             )
         )
 
-        if self.WRAP_MODEL:
+        if not self.ATTACH_ONLY:
             model = hooks_or_module
 
         self._train_steps(model, optimizer, poisson_dl, max_steps=total_steps)

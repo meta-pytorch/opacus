@@ -112,6 +112,7 @@ class DPLossFastGradientClipping:
         self.module = module
         self.criterion = criterion
         self.loss_reduction = loss_reduction
+        self.criterion.reduction = "none"
 
     def __call__(self, *args, shape=None, **kwargs) -> DPTensorFastGradientClipping:
         """

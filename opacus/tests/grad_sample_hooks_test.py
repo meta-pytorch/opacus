@@ -147,9 +147,6 @@ class GradSampleHooksTest(unittest.TestCase):
             not remaining_backward_hooks
         ), f"Some backward hooks remain after .remove_hooks(): {remaining_backward_hooks}"
 
-        # Cleanup
-        new_grad_sample_hooks.cleanup()
-
     def test_enable_hooks(self):
         """Test that hooks can be enabled."""
         self.grad_sample_hooks.enable_hooks()
