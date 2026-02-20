@@ -89,7 +89,7 @@ def register_norm_sampler(
     return decorator
 
 
-def wrap_model(
+def prepare_module(
     model: nn.Module,
     grad_sample_mode: str,
     attach_only: bool = False,
@@ -97,10 +97,10 @@ def wrap_model(
     **kwargs,
 ):
     """
-    Wraps the model for gradient sample computation.
+    Prepares the model for gradient sample computation.
 
     Args:
-        model: The nn.Module to wrap
+        model: The nn.Module to prepare
         grad_sample_mode: The gradient sampling mode
         attach_only: If True, attaches hooks without wrapping in a Module.
             If False (default), wraps in a GradSampleModule subclass.
@@ -117,6 +117,31 @@ def wrap_model(
         cls = get_hooks_class(grad_sample_mode)
 
     return cls(model, *args, **kwargs)
+
+
+# Backward compatibility alias
+def wrap_model(
+    model: nn.Module,
+    grad_sample_mode: str,
+    attach_only: bool = False,
+    *args,
+    **kwargs,
+):
+    """
+    Legacy alias for prepare_module(). Use prepare_module() in new code.
+
+    Wraps the model for gradient sample computation.
+
+    Args:
+        model: The nn.Module to wrap
+        grad_sample_mode: The gradient sampling mode
+        attach_only: If True, attaches hooks without wrapping in a Module.
+            If False (default), wraps in a GradSampleModule subclass.
+
+    Returns:
+        Union[AbstractGradSampleModule, GradSampleHooks]: Wrapped module or hooks object
+    """
+    return prepare_module(model, grad_sample_mode, attach_only, *args, **kwargs)
 
 
 def get_gsm_class(grad_sample_mode: str) -> Type[AbstractGradSampleModule]:

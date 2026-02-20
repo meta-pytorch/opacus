@@ -45,6 +45,7 @@ from .linear import compute_linear_grad_sample  # noqa
 from .rms_norm import compute_rms_norm_grad_sample  # noqa
 from .utils import (
     get_gsm_class,
+    prepare_module,
     register_grad_sampler,
     register_norm_sampler,
     wrap_model,
@@ -68,6 +69,7 @@ __all__ = [
     "register_grad_sampler",
     "register_norm_sampler",
     "create_or_accumulate_grad_sample",
+    "prepare_module",
     "wrap_model",
     "get_gsm_class",
 ]

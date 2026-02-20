@@ -27,8 +27,8 @@ from opacus.grad_sample import (
     GradSampleHooks,
     GradSampleModule,
     get_gsm_class,
+    prepare_module,
 )
-from opacus.grad_sample import wrap_model as wrap_model_fn
 from opacus.optimizers import DPOptimizer, get_optimizer_class
 from opacus.schedulers import _GradClipScheduler, _NoiseScheduler
 from opacus.utils.fast_gradient_clipping_utils import DPLossFastGradientClipping
@@ -200,7 +200,7 @@ class PrivacyEngine:
             return module
         else:
             if grad_sample_mode in ["ghost", "ghost_fsdp"]:
-                return wrap_model_fn(
+                return prepare_module(
                     module,
                     grad_sample_mode=grad_sample_mode,
                     batch_first=batch_first,
@@ -209,7 +209,7 @@ class PrivacyEngine:
                     attach_only=attach_only,
                 )
             else:
-                return wrap_model_fn(
+                return prepare_module(
                     module,
                     grad_sample_mode=grad_sample_mode,
                     batch_first=batch_first,
