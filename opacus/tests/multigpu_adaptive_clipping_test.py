@@ -65,7 +65,7 @@ class ToyModel(nn.Module):
         return self.net2(self.relu(self.net1(x)))
 
 
-def demo_basic(rank, weight, world_size, dp):
+def demo_basic(rank, weight, world_size, dp, attach_only=False):
     torch.manual_seed(world_size)
     batch_size = 2
     setup(rank, world_size)
@@ -94,17 +94,22 @@ def demo_basic(rank, weight, world_size, dp):
     data_loader = DataLoader(dataset, batch_size=batch_size, sampler=sampler)
 
     if dp:
-        ddp_model, optimizer, criterion, data_loader = privacy_engine.make_private(
-            module=ddp_model,
-            optimizer=optimizer,
-            criterion=criterion,
-            data_loader=data_loader,
-            noise_multiplier=0,
-            max_grad_norm=max_grad_norm,
-            poisson_sampling=False,
-            grad_sample_mode="ghost",
-            target_unclipped_quantile=1.0,
+        hooks_or_module, optimizer, criterion, data_loader = (
+            privacy_engine.make_private(
+                module=ddp_model,
+                optimizer=optimizer,
+                criterion=criterion,
+                data_loader=data_loader,
+                noise_multiplier=0,
+                max_grad_norm=max_grad_norm,
+                poisson_sampling=False,
+                grad_sample_mode="ghost",
+                target_unclipped_quantile=1.0,
+                attach_only=attach_only,
+            )
         )
+        if not attach_only:
+            ddp_model = hooks_or_module
         assert isinstance(optimizer, DistributedDPOptimizerFastGradientClipping)
 
     for x, y in data_loader:
@@ -119,10 +124,10 @@ def demo_basic(rank, weight, world_size, dp):
     cleanup()
 
 
-def run_demo(demo_fn, weight, world_size, dp):
+def run_demo(demo_fn, weight, world_size, dp, attach_only=False):
     mp.spawn(
         demo_fn,
-        args=(weight, world_size, dp),
+        args=(weight, world_size, dp, attach_only),
         nprocs=world_size,
         join=True,
     )
@@ -138,19 +143,25 @@ class GradientComputationTestAdaptiveClipping(unittest.TestCase):
             n_gpus >= 2, f"Need at least 2 gpus but was provided only {n_gpus}."
         )
 
-        weight_dp, weight_nodp = torch.ones(10, 10), torch.ones(10, 10)
+        for attach_only in [False, True]:
+            with self.subTest(attach_only=attach_only):
+                weight_dp, weight_nodp = torch.ones(10, 10), torch.ones(10, 10)
 
-        run_demo(
-            demo_basic,
-            weight_nodp,
-            2,
-            dp=False,
-        )
-        run_demo(
-            demo_basic,
-            weight_dp,
-            2,
-            dp=True,
-        )
+                run_demo(
+                    demo_basic,
+                    weight_nodp,
+                    2,
+                    dp=False,
+                    attach_only=attach_only,
+                )
+                run_demo(
+                    demo_basic,
+                    weight_dp,
+                    2,
+                    dp=True,
+                    attach_only=attach_only,
+                )
 
-        self.assertTrue(torch.allclose(weight_dp, weight_nodp, atol=1e-5, rtol=1e-3))
+                self.assertTrue(
+                    torch.allclose(weight_dp, weight_nodp, atol=1e-5, rtol=1e-3)
+                )

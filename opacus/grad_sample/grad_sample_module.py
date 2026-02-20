@@ -23,7 +23,10 @@ from typing import Iterable, List, Tuple
 import torch
 import torch.nn as nn
 from opacus.grad_sample.functorch import ft_compute_per_sample_gradient, prepare_layer
-from opacus.grad_sample.gsm_base import AbstractGradSampleModule
+from opacus.grad_sample.gsm_base import (
+    AbstractGradSampleHooks,
+    AbstractGradSampleModule,
+)
 from opacus.layers.dp_rnn import DPGRU, DPLSTM, DPRNN, RNNLinear
 from opacus.utils.module_utils import (
     has_trainable_params,
@@ -76,11 +79,12 @@ def promote_current_grad_sample(p: nn.Parameter) -> None:
         del p._current_grad_sample
 
 
-class GradSampleModule(AbstractGradSampleModule):
+class GradSampleHooks(AbstractGradSampleHooks):
     """
-    Hooks-based implementation of AbstractGradSampleModule
+    Hooks-based implementation for computing per-sample gradients.
 
     Computes per-sample gradients using custom-written methods for each layer.
+    Attaches to the model without wrapping it in an nn.Module.
     See README.md for more details
     """
 
@@ -98,7 +102,7 @@ class GradSampleModule(AbstractGradSampleModule):
         """
 
         Args:
-            m: nn.Module to be wrapped
+            m: nn.Module to be attached to
             batch_first: Flag to indicate if the input tensor to the corresponding module
                 has the first dimension representing the batch. If set to True, dimensions on
                 input tensor are expected be ``[batch_size, ...]``, otherwise
@@ -130,7 +134,7 @@ class GradSampleModule(AbstractGradSampleModule):
         errors = self.validate(module=m, strict=strict)
         if errors and not strict:
             logger.info(
-                f"GradSampleModule found the following errors: {errors}."
+                f"Validation found the following errors: {errors}."
                 "Using non-strict mode, continuing"
             )
 
@@ -144,9 +148,6 @@ class GradSampleModule(AbstractGradSampleModule):
             batch_first=batch_first,
             force_functorch=force_functorch,
         )
-
-    def forward(self, *args, **kwargs):
-        return self._module(*args, **kwargs)
 
     def iterate_submodules(self, module: nn.Module) -> Iterable[nn.Module]:
         if has_trainable_params(module):
@@ -206,11 +207,11 @@ class GradSampleModule(AbstractGradSampleModule):
             if force_functorch or not (module_type in self.GRAD_SAMPLERS):
                 prepare_layer(module, batch_first=batch_first)
 
-            self.autograd_grad_sample_hooks.append(
+            self._module.autograd_grad_sample_hooks.append(
                 module.register_forward_hook(self.capture_activations_hook)
             )
 
-            self.autograd_grad_sample_hooks.append(
+            self._module.autograd_grad_sample_hooks.append(
                 module.register_full_backward_hook(
                     partial(
                         self.capture_backprops_hook,
@@ -228,21 +229,20 @@ class GradSampleModule(AbstractGradSampleModule):
         """
         self.disable_hooks()
 
-        for p in self.parameters():
+        for p in self._module.parameters():
             if hasattr(p, "ddp_hooks"):
                 while p.ddp_hooks:
                     handle = p.ddp_hooks.pop()
                     handle.remove()
                 delattr(p, "ddp_hooks")
 
-        if not hasattr(self, "autograd_grad_sample_hooks"):
-            raise ValueError("Asked to remove hooks, but no hooks found")
-        else:
+        if hasattr(self, "autograd_grad_sample_hooks"):
             while self.autograd_grad_sample_hooks:
                 handle = self.autograd_grad_sample_hooks.pop()
                 handle.remove()
             delattr(self, "autograd_grad_sample_hooks")
-            delattr(self._module, "autograd_grad_sample_hooks")
+            if hasattr(self._module, "autograd_grad_sample_hooks"):
+                delattr(self._module, "autograd_grad_sample_hooks")
 
         # Remove functorch hooks
         for _module_name, module in trainable_modules(self._module):
@@ -264,10 +264,6 @@ class GradSampleModule(AbstractGradSampleModule):
         disable them so you don't need to call this unless you want to re-enable them.
         """
         self.hooks_enabled = True
-
-    def _close(self):
-        super()._close()
-        self.remove_hooks()
 
     def capture_activations_hook(
         self,
@@ -493,6 +489,64 @@ class GradSampleModule(AbstractGradSampleModule):
 
     def allow_grad_accumulation(self):
         self.grad_accumulation_allowed = True
+
+
+class GradSampleModule(GradSampleHooks, AbstractGradSampleModule):
+    """
+    Hooks-based implementation of AbstractGradSampleModule
+
+    Computes per-sample gradients using custom-written methods for each layer.
+    See README.md for more details
+    """
+
+    def __init__(
+        self,
+        m: nn.Module,
+        *,
+        batch_first=True,
+        loss_reduction="mean",
+        strict: bool = True,
+        force_functorch=False,
+    ):
+        """
+
+        Args:
+            m: nn.Module to be wrapped
+            batch_first: Flag to indicate if the input tensor to the corresponding module
+                has the first dimension representing the batch. If set to True, dimensions on
+                input tensor are expected be ``[batch_size, ...]``, otherwise
+                ``[K, batch_size, ...]``
+            loss_reduction: Indicates if the loss reduction (for aggregating the gradients)
+                is a sum or a mean operation. Can take values "sum" or "mean"
+            strict: If set to ``True``, the input module will be validated to make sure that none of its submodules includes buffers,
+                which is not currently supported by Opacus.
+                If set to ``False``, per sample gradients will
+                be computed on "best effort" basis - they will be available where
+                possible and set to None otherwise. This is not recommended, because
+                some unsupported modules (e.g. BatchNorm) affect other parameters and
+                invalidate the concept of per sample gradients for the entire model.
+            force_functorch: If set to ``True``, will use functorch to compute
+                all per sample gradients. Otherwise, functorch will be used only
+                for layers without registered grad sampler methods.
+
+        Raises:
+            NotImplementedError
+                If ``strict`` is set to ``True`` and module ``m`` (or any of its
+                submodules) includes a buffer.
+        """
+        nn.Module.__init__(self)
+        GradSampleHooks.__init__(
+            self,
+            m,
+            batch_first=batch_first,
+            loss_reduction=loss_reduction,
+            strict=strict,
+            force_functorch=force_functorch,
+        )
+        self.grad_accumulation_hook = None
+
+    def forward(self, *args, **kwargs):
+        return self._module(*args, **kwargs)
 
 
 def _get_batch_size(*, module: nn.Module, batch_dim: int) -> int:

@@ -24,9 +24,10 @@ from opacus.data_loader import DPDataLoader, switch_generator
 from opacus.distributed import DifferentiallyPrivateDistributedDataParallel as DPDDP
 from opacus.grad_sample import (
     AbstractGradSampleModule,
+    GradSampleHooks,
     GradSampleModule,
     get_gsm_class,
-    wrap_model,
+    prepare_module,
 )
 from opacus.optimizers import DPOptimizer, get_optimizer_class
 from opacus.schedulers import _GradClipScheduler, _NoiseScheduler
@@ -176,13 +177,14 @@ class PrivacyEngine:
         max_grad_norm: Union[float, List[float]] = 1.0,
         loss_reduction: str = "mean",
         grad_sample_mode: str = "hooks",
-    ) -> AbstractGradSampleModule:
+        attach_only: bool = False,
+    ) -> Union[AbstractGradSampleModule, GradSampleHooks]:
         # Ideally, validation should have been taken care of by calling
         # `get_compatible_module()`
         self.validate(module=module, optimizer=None, data_loader=None)
 
         # wrap
-        if isinstance(module, AbstractGradSampleModule):
+        if not attach_only and isinstance(module, AbstractGradSampleModule):
             if (
                 module.batch_first != batch_first
                 or module.loss_reduction != loss_reduction
@@ -198,19 +200,21 @@ class PrivacyEngine:
             return module
         else:
             if grad_sample_mode in ["ghost", "ghost_fsdp"]:
-                return wrap_model(
+                return prepare_module(
                     module,
                     grad_sample_mode=grad_sample_mode,
                     batch_first=batch_first,
                     loss_reduction=loss_reduction,
                     max_grad_norm=max_grad_norm,
+                    attach_only=attach_only,
                 )
             else:
-                return wrap_model(
+                return prepare_module(
                     module,
                     grad_sample_mode=grad_sample_mode,
                     batch_first=batch_first,
                     loss_reduction=loss_reduction,
+                    attach_only=attach_only,
                 )
 
     def _prepare_criterion(
@@ -218,7 +222,7 @@ class PrivacyEngine:
         *,
         module: GradSampleModule,
         optimizer: DPOptimizer,
-        criterion=nn.CrossEntropyLoss(),
+        criterion,
         loss_reduction: str = "mean",
         **kwargs,
     ) -> DPLossFastGradientClipping:
@@ -309,10 +313,18 @@ class PrivacyEngine:
         clipping: str = "flat",
         noise_generator=None,
         grad_sample_mode: str = "hooks",
+        attach_only: bool = False,
         **kwargs,
     ) -> Union[
-        Tuple[GradSampleModule, DPOptimizer, DataLoader],
-        Tuple[GradSampleModule, DPOptimizer, DPLossFastGradientClipping, DataLoader],
+        Tuple[
+            Union[AbstractGradSampleModule, GradSampleHooks], DPOptimizer, DataLoader
+        ],
+        Tuple[
+            Union[AbstractGradSampleModule, GradSampleHooks],
+            DPOptimizer,
+            DPLossFastGradientClipping,
+            DataLoader,
+        ],
     ]:
         """
         Add privacy-related responsibilities to the main PyTorch training objects:
@@ -362,12 +374,22 @@ class PrivacyEngine:
                 implementation class for the wrapped ``module``. See
                 :class:`~opacus.grad_sample.gsm_base.AbstractGradSampleModule` for more
                 details
+            attach_only: If True, attaches hooks directly to the module without wrapping.
+                If False (default), wraps the module in a GradSampleModule.
+                Use attach_only=True for compatibility with HuggingFace Transformers
+                and models with custom __getattr__ that don't work well with wrapping.
 
         Returns:
-            Tuple of  (model, optimizer, data_loader) or (model, optimizer, criterion, data_loader).
+            Tuple of (hooks_or_module, optimizer, data_loader) or (hooks_or_module, optimizer, criterion, data_loader).
 
-            Model is a wrapper around the original model that also computes per sample
-                gradients
+            Returns a hooks object for gradient sampling and cleanup:
+            - If attach_only=False (default): Returns wrapped GradSampleModule (use as your module)
+            - If attach_only=True: Returns GradSampleHooks object (use your original module directly,
+              use returned hooks only for cleanup)
+
+            The hooks object provides .cleanup() method. In attach-only mode, the original module
+            passed to make_private() is unchanged - continue using it normally.
+
             Optimizer is a wrapper around the original optimizer that also does
              gradient clipping and noise addition to the gradients
             Criterion is a wrapper around the original criterion that packages the two backward passes for fast gradient clipping.
@@ -397,6 +419,7 @@ class PrivacyEngine:
             max_grad_norm=max_grad_norm,
             loss_reduction=loss_reduction,
             grad_sample_mode=grad_sample_mode,
+            attach_only=attach_only,
         )
         if poisson_sampling:
             module.forbid_grad_accumulation()
@@ -459,10 +482,18 @@ class PrivacyEngine:
         clipping: str = "flat",
         noise_generator=None,
         grad_sample_mode: str = "hooks",
+        attach_only: bool = False,
         **kwargs,
     ) -> Union[
-        Tuple[GradSampleModule, DPOptimizer, DataLoader],
-        Tuple[GradSampleModule, DPOptimizer, DPLossFastGradientClipping, DataLoader],
+        Tuple[
+            Union[AbstractGradSampleModule, GradSampleHooks], DPOptimizer, DataLoader
+        ],
+        Tuple[
+            Union[AbstractGradSampleModule, GradSampleHooks],
+            DPOptimizer,
+            DPLossFastGradientClipping,
+            DataLoader,
+        ],
     ]:
         """
         Version of :meth:`~opacus.privacy_engine.PrivacyEngine.make_private`,
@@ -505,12 +536,22 @@ class PrivacyEngine:
                 implementation class for the wrapped ``module``. See
                 :class:`~opacus.grad_sample.gsm_base.AbstractGradSampleModule` for more
                 details
+            attach_only: If True, attaches hooks directly to the module without wrapping.
+                If False (default), wraps the module in a GradSampleModule.
+                Use attach_only=True for compatibility with HuggingFace Transformers
+                and models with custom __getattr__ that don't work well with wrapping.
 
         Returns:
-            Tuple of (model, optimizer, data_loader) or (model, optimizer, criterion, data_loader).
+            Tuple of (hooks_or_module, optimizer, data_loader) or (hooks_or_module, optimizer, criterion, data_loader).
 
-            Model is a wrapper around the original model that also computes per sample
-                gradients
+            Returns a hooks object for gradient sampling and cleanup:
+            - If attach_only=False (default): Returns wrapped GradSampleModule (use as your module)
+            - If attach_only=True: Returns GradSampleHooks object (use your original module directly,
+              use returned hooks only for cleanup)
+
+            The hooks object provides .cleanup() method. In attach-only mode, the original module
+            passed to make_private() is unchanged - continue using it normally.
+
             Optimizer is a wrapper around the original optimizer that also does
                 gradient clipping and noise addition to the gradients
             Criterion is a wrapper around the original criterion that packages the two backward passes for fast gradient clipping.
@@ -548,6 +589,7 @@ class PrivacyEngine:
             grad_sample_mode=grad_sample_mode,
             poisson_sampling=poisson_sampling,
             clipping=clipping,
+            attach_only=attach_only,
             **kwargs,
         )
 
@@ -567,7 +609,7 @@ class PrivacyEngine:
         self,
         *,
         path: Union[str, os.PathLike, BinaryIO, IO[bytes]],
-        module: GradSampleModule,
+        module: Union[nn.Module, GradSampleModule],
         optimizer: Optional[DPOptimizer] = None,
         noise_scheduler: Optional[_NoiseScheduler] = None,
         grad_clip_scheduler: Optional[_GradClipScheduler] = None,
@@ -579,7 +621,7 @@ class PrivacyEngine:
         Saves the state_dict of module, optimizer, and accountant at path.
         Args:
             path: Path to save the state dict objects.
-            module: GradSampleModule to save; wrapped module's state_dict is saved.
+            module: nn.Module or GradSampleModule to save; wrapped module's state_dict is saved.
             optimizer: DPOptimizer to save; wrapped optimizer's state_dict is saved.
             noise_scheduler: _NoiseScheduler whose state we should save.
             grad_clip_scheduler: _GradClipScheduler whose state we should save.
@@ -608,7 +650,7 @@ class PrivacyEngine:
         self,
         *,
         path: Union[str, os.PathLike, BinaryIO, IO[bytes]],
-        module: GradSampleModule,
+        module: Union[nn.Module, GradSampleModule],
         optimizer: Optional[DPOptimizer] = None,
         noise_scheduler: Optional[_NoiseScheduler] = None,
         grad_clip_scheduler: Optional[_GradClipScheduler] = None,

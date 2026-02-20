@@ -22,10 +22,11 @@ import torch
 import torch.nn as nn
 from opacus.grad_sample.functorch import ft_compute_per_sample_gradient
 from opacus.grad_sample.grad_sample_module import (
-    GradSampleModule,
+    GradSampleHooks,
     create_or_accumulate_grad_sample,
     promote_current_grad_sample,
 )
+from opacus.grad_sample.gsm_base import AbstractGradSampleModule
 from opacus.layers.dp_rnn import DPGRU, DPLSTM, DPRNN
 from opacus.utils.module_utils import (
     requires_grad,
@@ -69,9 +70,9 @@ def create_norm_sample(
             )
 
 
-class GradSampleModuleFastGradientClipping(GradSampleModule):
+class GradSampleHooksFastGradientClipping(GradSampleHooks):
     """
-    Hooks-based implementation of GradSampleModule with Fast Gradient and Ghost Clipping
+    Hooks-based implementation for Fast Gradient and Ghost Clipping
 
     Computes norms of gradients without gradient instantiation
     """
@@ -92,7 +93,7 @@ class GradSampleModuleFastGradientClipping(GradSampleModule):
         """
 
         Args:
-            m: nn.Module to be wrapped
+            m: nn.Module to be attached to
             batch_first: Flag to indicate if the input tensor to the corresponding module
                 has the first dimension representing the batch. If set to True, dimensions on
                 input tensor are expected be ``[batch_size, ...]``, otherwise
@@ -301,3 +302,62 @@ class GradSampleModuleFastGradientClipping(GradSampleModule):
     @per_sample_gradient_norms.setter
     def per_sample_gradient_norms(self, value):
         self._per_sample_gradient_norms = value
+
+
+class GradSampleModuleFastGradientClipping(
+    GradSampleHooksFastGradientClipping, AbstractGradSampleModule
+):
+    """
+    Hooks-based implementation of GradSampleModule with Fast Gradient and Ghost Clipping
+
+    Computes norms of gradients without gradient instantiation
+    """
+
+    def __init__(
+        self,
+        m: nn.Module,
+        *,
+        batch_first=True,
+        loss_reduction="mean",
+        strict: bool = True,
+        force_functorch=False,
+        max_grad_norm=1,
+        use_ghost_clipping=True,
+    ):
+        """
+
+        Args:
+            m: nn.Module to be wrapped
+            batch_first: Flag to indicate if the input tensor to the corresponding module
+                has the first dimension representing the batch. If set to True, dimensions on
+                input tensor are expected be ``[batch_size, ...]``, otherwise
+                ``[K, batch_size, ...]``
+            loss_reduction: Indicates if the loss reduction (for aggregating the gradients)
+                is a sum or a mean operation. Can take values "sum" or "mean"
+            max_grad_norm: The value at which gradients are to be clipped.
+            strict: If set to True, the input module will be validated to make sure that
+                it does not have buffers in all its submodules.
+            force_functorch: If set to ``True``, will use functorch to compute
+                all per sample gradients. Otherwise, functorch will be used only
+                for layers without registered grad sampler methods.
+            use_ghost_clipping: If set to ``True``, Ghost Clipping
+                will be used for clipping gradients of supported layers. If ``False``, Fast
+                Gradient Clipping will be used for all layers.
+
+        Raises:
+            NotImplementedError
+                If ``strict`` is set to ``True`` and module ``m`` (or any of its
+                submodules) includes a buffer.
+        """
+        nn.Module.__init__(self)
+        GradSampleHooksFastGradientClipping.__init__(
+            self,
+            m,
+            batch_first=batch_first,
+            loss_reduction=loss_reduction,
+            strict=strict,
+            force_functorch=force_functorch,
+            max_grad_norm=max_grad_norm,
+            use_ghost_clipping=use_ghost_clipping,
+        )
+        self.grad_accumulation_hook = None

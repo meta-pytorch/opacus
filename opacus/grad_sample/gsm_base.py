@@ -32,7 +32,98 @@ OPACUS_PARAM_MONKEYPATCH_ATTRS = [
 ]
 
 
-class AbstractGradSampleModule(nn.Module, ABC):
+class AbstractGradSampleHooks(ABC):
+    """
+    Attaches to nn.Module so that its parameter tensors have an extra field called .grad_sample.
+    """
+
+    def __init__(
+        self,
+        m: nn.Module,
+        *,
+        batch_first=True,
+        loss_reduction="mean",
+    ):
+        """
+
+        Args:
+            m: nn.Module to be attached to
+            batch_first: Flag to indicate if the input tensor to the corresponding module
+                has the first dimension representing the batch. If set to True, dimensions on
+                input tensor are expected be ``[batch_size, ...]``, otherwise
+                ``[K, batch_size, ...]``
+            loss_reduction: Indicates if the loss reduction (for aggregating the gradients)
+                is a sum or a mean operation. Can take values "sum" or "mean"
+
+        Raises:
+            NotImplementedError
+                If ``strict`` is set to ``True`` and module ``m`` (or any of its
+                submodules) doesn't have a registered grad sampler function.
+        """
+        super().__init__()
+
+        self._module = m
+        self.batch_first = batch_first
+        self.loss_reduction = loss_reduction
+
+        for _, p in trainable_parameters(self._module):
+            p.grad_sample = None
+            p._forward_counter = 0
+
+    def set_grad_sample_to_none(self):
+        """
+        Sets ``.grad_sample`` to None
+        """
+        for p in self._module.parameters():
+            p.grad_sample = None
+
+    def del_grad_sample(self):
+        """
+        Deleted ``.grad_sample`` attribute from all model parameters
+        """
+        for p in self._module.parameters():
+            del p.grad_sample
+
+    def forbid_grad_accumulation(self):
+        """
+        Sets a flag to detect gradient accumulation (multiple forward/backward passes
+        without an optimizer step or clearing out gradients).
+
+        When set, GradSampleModule will throw a ValueError on the second backward pass.
+        :return:
+        """
+        pass
+
+    def allow_grad_accumulation(self):
+        """
+        Unsets a flag to detect gradient accumulation (multiple forward/backward passes
+        without an optimizer step or clearing out gradients).
+
+        When set, GradSampleModule will throw a ValueError on the second backward pass.
+        :return:
+        """
+        pass
+
+    @abstractmethod
+    def remove_hooks(self) -> None:
+        pass
+
+    def cleanup(self):
+        """
+        Cleanup hook-related attributes from parameters.
+        Removes all Opacus-added attributes like grad_sample, _forward_counter, etc.
+        Subclasses should override this to remove any additional attributes they added.
+        """
+        try:
+            self.remove_hooks()
+        finally:
+            for attr in OPACUS_PARAM_MONKEYPATCH_ATTRS:
+                for p in self._module.parameters():
+                    if hasattr(p, attr):
+                        delattr(p, attr)
+
+
+class AbstractGradSampleModule(nn.Module, AbstractGradSampleHooks, ABC):
     r"""
     Extends nn.Module so that its parameter tensors have an extra field called .grad_sample.
     """
@@ -60,20 +151,17 @@ class AbstractGradSampleModule(nn.Module, ABC):
                 If ``strict`` is set to ``True`` and module ``m`` (or any of its
                 submodules) doesn't have a registered grad sampler function.
         """
-        super().__init__()
-
-        self._module = m
-        self.batch_first = batch_first
-        self.loss_reduction = loss_reduction
+        nn.Module.__init__(self)
+        AbstractGradSampleHooks.__init__(
+            self,
+            m,
+            batch_first=batch_first,
+            loss_reduction=loss_reduction,
+        )
         self.grad_accumulation_hook: Optional[RemovableHandle] = None
 
-        for _, p in trainable_parameters(self):
-            p.grad_sample = None
-            p._forward_counter = 0
-
-    @abstractmethod
     def forward(self, *args, **kwargs):
-        pass
+        return self._module(*args, **kwargs)
 
     def __getattr__(self, item):
         try:
@@ -110,20 +198,6 @@ class AbstractGradSampleModule(nn.Module, ABC):
         self.set_grad_sample_to_none()
         super().zero_grad(set_to_none)
 
-    def set_grad_sample_to_none(self):
-        """
-        Sets ``.grad_sample`` to None
-        """
-        for p in self.parameters():
-            p.grad_sample = None
-
-    def del_grad_sample(self):
-        """
-        Deleted ``.grad_sample`` attribute from all model parameters
-        """
-        for p in self.parameters():
-            del p.grad_sample
-
     def to_standard_module(self) -> nn.Module:
         """
         Returns the standard nn.Module wrapped by this, eliminating all traces
@@ -136,31 +210,7 @@ class AbstractGradSampleModule(nn.Module, ABC):
         return self._module
 
     def _close(self):
-        # Clean up attributes
-        for attr in OPACUS_PARAM_MONKEYPATCH_ATTRS:
-            for p in self.parameters():
-                if hasattr(p, attr):
-                    delattr(p, attr)
+        self.cleanup()
 
     def __repr__(self):
         return f"{type(self).__name__}({self._module.__repr__()})"
-
-    def forbid_grad_accumulation(self):
-        """
-        Sets a flag to detect gradient accumulation (multiple forward/backward passes
-        without an optimizer step or clearing out gradients).
-
-        When set, GradSampleModule will throw a ValueError on the second backward pass.
-        :return:
-        """
-        pass
-
-    def allow_grad_accumulation(self):
-        """
-        Unsets a flag to detect gradient accumulation (multiple forward/backward passes
-        without an optimizer step or clearing out gradients).
-
-        When set, GradSampleModule will throw a ValueError on the second backward pass.
-        :return:
-        """
-        pass
