@@ -67,7 +67,10 @@ class DPDataLoaderTest(unittest.TestCase):
             batch_count += 1
 
         # Verify we actually tested empty batch handling
-        self.assertTrue(empty_batch_found, "No empty batches produced - test doesn't verify empty batch handling")
+        self.assertTrue(
+            empty_batch_found,
+            "No empty batches produced - test doesn't verify empty batch handling",
+        )
         self.assertGreater(batch_count, 1)
 
     def test_collate_tensor(self) -> None:
@@ -105,7 +108,10 @@ class DPDataLoaderTest(unittest.TestCase):
             batch_count += 1
 
         # Verify we actually tested empty batch handling
-        self.assertTrue(empty_batch_found, "No empty batches produced - test doesn't verify empty batch handling")
+        self.assertTrue(
+            empty_batch_found,
+            "No empty batches produced - test doesn't verify empty batch handling",
+        )
         self.assertGreater(batch_count, 1)
 
     def test_drop_last_true(self) -> None:
@@ -160,7 +166,7 @@ class CollateFnWithEmptyTest(unittest.TestCase):
         # First batch with dict structure
         batch = [
             {"x": torch.tensor([1, 2]), "y": torch.tensor([5])},
-            {"x": torch.tensor([3, 4]), "y": torch.tensor([6])}
+            {"x": torch.tensor([3, 4]), "y": torch.tensor([6])},
         ]
         result = collate_fn(batch)
 
@@ -184,7 +190,7 @@ class CollateFnWithEmptyTest(unittest.TestCase):
         # First batch with list of tensors
         batch = [
             [torch.tensor([1, 2]), torch.tensor([3])],
-            [torch.tensor([4, 5]), torch.tensor([6])]
+            [torch.tensor([4, 5]), torch.tensor([6])],
         ]
         result = collate_fn(batch)
 
@@ -269,6 +275,7 @@ class CollateFnWithEmptyTest(unittest.TestCase):
 
     def test_tuple_preservation(self) -> None:
         """Test that tuple structures are preserved"""
+
         def tuple_collate(batch):
             # Custom collator that returns tuples
             x = default_collate([item[0] for item in batch])
@@ -277,8 +284,10 @@ class CollateFnWithEmptyTest(unittest.TestCase):
 
         collate_fn = CollateFnWithEmpty(tuple_collate)
 
-        batch = [(torch.tensor([1, 2]), torch.tensor([5])),
-                 (torch.tensor([3, 4]), torch.tensor([6]))]
+        batch = [
+            (torch.tensor([1, 2]), torch.tensor([5])),
+            (torch.tensor([3, 4]), torch.tensor([6])),
+        ]
         result = collate_fn(batch)
 
         self.assertIsInstance(result, tuple)
@@ -294,6 +303,7 @@ class CollateFnWithEmptyTest(unittest.TestCase):
 
     def test_unsupported_type_raises_error(self) -> None:
         """Test that unsupported batch types raise TypeError to preserve DP guarantees"""
+
         def custom_collate(batch):
             # Custom collator that returns an unsupported type (e.g., string)
             if len(batch) > 0:

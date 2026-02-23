@@ -65,10 +65,10 @@ class CollateFnWithEmpty:
     """
 
     def __init__(
-            self,
-            collator_fn: Optional[_collate_fn_t],
-            batch_first: bool = True,
-            rand_on_empty: bool = False,
+        self,
+        collator_fn: Optional[_collate_fn_t],
+        batch_first: bool = True,
+        rand_on_empty: bool = False,
     ) -> None:
         self.wrapped_collator_fn = collator_fn
         self.batch_first = batch_first
@@ -96,7 +96,7 @@ class CollateFnWithEmpty:
         return output
 
     def _make_empty_batch(
-            self, sample: Union[torch.Tensor, Mapping, List, Any]
+        self, sample: Union[torch.Tensor, Mapping, List, Any]
     ) -> Union[torch.Tensor, Mapping, List, Any]:
         if torch.is_tensor(sample):
             shape = list(sample.shape)
@@ -128,10 +128,10 @@ class CollateFnWithEmpty:
 
 
 def wrap_collate_with_empty(
-        *,
-        collate_fn: Optional[_collate_fn_t],
-        batch_first: bool = True,
-        rand_on_empty: bool = False,
+    *,
+    collate_fn: Optional[_collate_fn_t],
+    batch_first: bool = True,
+    rand_on_empty: bool = False,
 ) -> CollateFnWithEmpty:
     """
     Wraps given collate function to handle empty batches.
@@ -192,17 +192,17 @@ class DPDataLoader(DataLoader):
     """
 
     def __init__(
-            self,
-            dataset: Dataset,
-            *,
-            sample_rate: float,
-            collate_fn: Optional[_collate_fn_t] = None,
-            drop_last: bool = False,
-            generator=None,
-            distributed: bool = False,
-            batch_first: bool = True,
-            rand_on_empty: bool = False,
-            **kwargs,
+        self,
+        dataset: Dataset,
+        *,
+        sample_rate: float,
+        collate_fn: Optional[_collate_fn_t] = None,
+        drop_last: bool = False,
+        generator=None,
+        distributed: bool = False,
+        batch_first: bool = True,
+        rand_on_empty: bool = False,
+        **kwargs,
     ):
         """
 
@@ -264,13 +264,13 @@ class DPDataLoader(DataLoader):
 
     @classmethod
     def from_data_loader(
-            cls,
-            data_loader: DataLoader,
-            *,
-            distributed: bool = False,
-            generator=None,
-            batch_first: bool = True,
-            rand_on_empty: bool = False,
+        cls,
+        data_loader: DataLoader,
+        *,
+        distributed: bool = False,
+        generator=None,
+        batch_first: bool = True,
+        rand_on_empty: bool = False,
     ):
         """
         Creates new ``DPDataLoader`` based on passed ``data_loader`` argument.
@@ -324,9 +324,9 @@ class DPDataLoader(DataLoader):
 
 def _is_supported_batch_sampler(sampler: Sampler):
     return (
-            isinstance(sampler, BatchSampler)
-            or isinstance(sampler, UniformWithReplacementSampler)
-            or isinstance(sampler, DistributedUniformWithReplacementSampler)
+        isinstance(sampler, BatchSampler)
+        or isinstance(sampler, UniformWithReplacementSampler)
+        or isinstance(sampler, DistributedUniformWithReplacementSampler)
     )
 
 
