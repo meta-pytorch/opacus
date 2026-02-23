@@ -259,7 +259,10 @@ class AdaClipNoiseMultiplierTest(unittest.TestCase):
                 expected_batch_size=32,
             )
 
-        self.assertIn("noise_multiplier must be smaller than 2 * unclipped_num_std", str(context.exception))
+        self.assertIn(
+            "noise_multiplier must be smaller than 2 * unclipped_num_std",
+            str(context.exception),
+        )
 
 
 if __name__ == "__main__":
