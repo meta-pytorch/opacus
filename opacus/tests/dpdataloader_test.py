@@ -150,14 +150,17 @@ class CollateFnWithEmptyTest(unittest.TestCase):
         self.assertEqual(empty_result.shape[0], 0)  # Batch dimension should be 0
         self.assertEqual(empty_result.shape[1], 2)  # Other dimensions preserved
 
-    def test_empty_batch_before_first_raises_error(self) -> None:
-        """Test that processing empty batch first raises ValueError"""
+    def test_empty_batch_before_first_returns_empty_list(self) -> None:
+        """Test that processing empty batch first returns empty list with warning"""
         collate_fn = CollateFnWithEmpty(default_collate)
 
-        with self.assertRaises(ValueError) as context:
-            collate_fn([])
+        with self.assertLogs("opacus.data_loader", level="WARNING") as log:
+            result = collate_fn([])
 
-        self.assertIn("First sampled batch cannot be empty", str(context.exception))
+        self.assertEqual(result, [])
+        self.assertTrue(
+            any("First batch is empty" in message for message in log.output)
+        )
 
     def test_dict_structure_preserved(self) -> None:
         """Test that dictionary structures are preserved in empty batches"""

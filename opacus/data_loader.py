@@ -86,10 +86,12 @@ class CollateFnWithEmpty:
                 self.first_batch = copy.deepcopy(output)
         else:
             if self.first_batch is None:
-                raise ValueError(
-                    "First sampled batch cannot be empty. Please ensure your dataset "
-                    "has sufficient samples or increase sample_rate."
+                logger.warning(
+                    "First batch is empty. We are using an empty list as a batch. "
+                    "This may cause issues if the model expects a different batch format. "
+                    "To fix, use more data, increase epsilon, or increase sampling rate."
                 )
+                return []
 
             # materialize into empty with the same structure as list/dict
             output = self._make_empty_batch(self.first_batch)
