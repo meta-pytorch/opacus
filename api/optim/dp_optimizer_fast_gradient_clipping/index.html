@@ -85,6 +85,16 @@ but there are possible exceptions.</p>
 <p>Used by privacy accountants to calculate real sampling rate.</p>
 </dd></dl>
 <dl class="py method">
+<dt class="sig sig-object py" id="opacus.optimizers.optimizer_fast_gradient_clipping.DPOptimizerFastGradientClipping.add_noise">
+<span class="sig-name descname"><span class="pre">add_noise</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/opacus/optimizers/optimizer_fast_gradient_clipping.html#DPOptimizerFastGradientClipping.add_noise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.optimizers.optimizer_fast_gradient_clipping.DPOptimizerFastGradientClipping.add_noise" title="Link to this definition">¶</a></dt>
+<dd><p>Adds noise to gradients. Stores noised result in <code class="docutils literal notranslate"><span class="pre">p.grad</span></code>.</p>
+<p>Uses <code class="docutils literal notranslate"><span class="pre">_adjusted_noise_multiplier</span></code> if set (for adaptive clipping),
+otherwise falls back to <code class="docutils literal notranslate"><span class="pre">noise_multiplier</span></code>. This separation ensures
+correct privacy accounting when using adaptive clipping, where the
+original noise_multiplier is preserved for accounting while the
+adjusted value is used only for noise generation.</p>
+</dd></dl>
+<dl class="py method">
 <dt class="sig sig-object py" id="opacus.optimizers.optimizer_fast_gradient_clipping.DPOptimizerFastGradientClipping.clip_and_accumulate">
 <span class="sig-name descname"><span class="pre">clip_and_accumulate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/opacus/optimizers/optimizer_fast_gradient_clipping.html#DPOptimizerFastGradientClipping.clip_and_accumulate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.optimizers.optimizer_fast_gradient_clipping.DPOptimizerFastGradientClipping.clip_and_accumulate" title="Link to this definition">¶</a></dt>
 <dd><p>Redefines a parent class’ function to not do anything</p>

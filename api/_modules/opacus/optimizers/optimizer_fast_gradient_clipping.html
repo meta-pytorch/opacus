@@ -48,7 +48,12 @@
 <span class="kn">import</span> <span class="nn">torch</span>
 <span class="kn">from</span> <span class="nn">torch.optim</span> <span class="kn">import</span> <span class="n">Optimizer</span>
 
-<span class="kn">from</span> <span class="nn">.optimizer</span> <span class="kn">import</span> <span class="n">DPOptimizer</span>
+<span class="kn">from</span> <span class="nn">.optimizer</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">DPOptimizer</span><span class="p">,</span>
+    <span class="n">_check_processed_flag</span><span class="p">,</span>
+    <span class="n">_generate_noise</span><span class="p">,</span>
+    <span class="n">_mark_as_processed</span><span class="p">,</span>
+<span class="p">)</span>
 
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -228,6 +233,38 @@
 <span class="sd">        Redefines a parent class' function to not do anything</span>
 <span class="sd">        """</span>
         <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="DPOptimizerFastGradientClipping.add_noise">
+<a class="viewcode-back" href="../../../optim/dp_optimizer_fast_gradient_clipping.html#opacus.optimizers.optimizer_fast_gradient_clipping.DPOptimizerFastGradientClipping.add_noise">[docs]</a>
+    <span class="k">def</span> <span class="nf">add_noise</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Adds noise to gradients. Stores noised result in ``p.grad``.</span>
+
+<span class="sd">        Uses ``_adjusted_noise_multiplier`` if set (for adaptive clipping),</span>
+<span class="sd">        otherwise falls back to ``noise_multiplier``. This separation ensures</span>
+<span class="sd">        correct privacy accounting when using adaptive clipping, where the</span>
+<span class="sd">        original noise_multiplier is preserved for accounting while the</span>
+<span class="sd">        adjusted value is used only for noise generation.</span>
+<span class="sd">        """</span>
+        <span class="c1"># Use adjusted noise multiplier if set (for adaptive clipping),</span>
+        <span class="c1"># otherwise use the standard noise_multiplier</span>
+        <span class="n">effective_noise_multiplier</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="s2">"_adjusted_noise_multiplier"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">noise_multiplier</span>
+        <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">:</span>
+            <span class="n">_check_processed_flag</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">summed_grad</span><span class="p">)</span>
+
+            <span class="n">noise</span> <span class="o">=</span> <span class="n">_generate_noise</span><span class="p">(</span>
+                <span class="n">std</span><span class="o">=</span><span class="n">effective_noise_multiplier</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_grad_norm</span><span class="p">,</span>
+                <span class="n">reference</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">summed_grad</span><span class="p">,</span>
+                <span class="n">generator</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">generator</span><span class="p">,</span>
+                <span class="n">secure_mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">secure_mode</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">p</span><span class="o">.</span><span class="n">grad</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">summed_grad</span> <span class="o">+</span> <span class="n">noise</span><span class="p">)</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+
+            <span class="n">_mark_as_processed</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">summed_grad</span><span class="p">)</span></div>
 </div>
 
 </pre></div>

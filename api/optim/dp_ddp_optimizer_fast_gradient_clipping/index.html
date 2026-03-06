@@ -54,7 +54,12 @@ See <code class="xref py py-meth docutils literal notranslate"><span class="pre"
 <dl class="py method">
 <dt class="sig sig-object py" id="opacus.optimizers.ddpoptimizer_fast_gradient_clipping.DistributedDPOptimizerFastGradientClipping.add_noise">
 <span class="sig-name descname"><span class="pre">add_noise</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/opacus/optimizers/ddpoptimizer_fast_gradient_clipping.html#DistributedDPOptimizerFastGradientClipping.add_noise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.optimizers.ddpoptimizer_fast_gradient_clipping.DistributedDPOptimizerFastGradientClipping.add_noise" title="Link to this definition">¶</a></dt>
-<dd><p>Adds noise to clipped gradients. Stores clipped and noised result in <code class="docutils literal notranslate"><span class="pre">p.grad</span></code></p>
+<dd><p>Adds noise to gradients. Stores noised result in <code class="docutils literal notranslate"><span class="pre">p.grad</span></code>.</p>
+<p>Uses <code class="docutils literal notranslate"><span class="pre">_adjusted_noise_multiplier</span></code> if set (for adaptive clipping),
+otherwise falls back to <code class="docutils literal notranslate"><span class="pre">noise_multiplier</span></code>. This separation ensures
+correct privacy accounting when using adaptive clipping, where the
+original noise_multiplier is preserved for accounting while the
+adjusted value is used only for noise generation.</p>
 </dd></dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="opacus.optimizers.ddpoptimizer_fast_gradient_clipping.DistributedDPOptimizerFastGradientClipping.step">
@@ -62,7 +67,7 @@ See <code class="xref py py-meth docutils literal notranslate"><span class="pre"
 <dd><p>Perform a single optimization step to update parameter.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>closure</strong> (<em>Callable</em>) – A closure that reevaluates the model and
+<dd class="field-odd"><p><strong>closure</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code></a>[[], <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>]]</span>) – A closure that reevaluates the model and
 returns the loss. Optional for most optimizers.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
