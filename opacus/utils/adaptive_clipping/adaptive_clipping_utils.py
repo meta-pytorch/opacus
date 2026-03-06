@@ -95,10 +95,13 @@ class DPTensorFastGradientAdaptiveClipping(DPTensorFastGradientClipping):
             per_sample_norms
         )
 
-        # update max grad norm and noise multiplier
+        # update max grad norm and adjusted noise multiplier for noise generation
+        # Note: We set _adjusted_noise_multiplier instead of noise_multiplier to preserve
+        # the original noise_multiplier for correct privacy accounting (see Theorem 1 in
+        # https://arxiv.org/pdf/1905.03871.pdf)
         self.module.max_grad_norm = new_max_grad_norm
         self.optimizer.max_grad_norm = new_max_grad_norm
-        self.optimizer.noise_multiplier = new_noise_multiplier
+        self.optimizer._adjusted_noise_multiplier = new_noise_multiplier
 
         # get the loss rescaling coefficients using the updated max_grad_norm
         coeff = torch.where(

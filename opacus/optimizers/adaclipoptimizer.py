@@ -76,11 +76,6 @@ class AdaClipDPOptimizer(DPOptimizer):
         self.max_clipbound = max_clipbound
         self.min_clipbound = min_clipbound
         self.unclipped_num_std = unclipped_num_std
-        # Theorem 1. in  https://arxiv.org/pdf/1905.03871.pdf
-        if self.noise_multiplier > 0:  # if noise_multiplier = 0 then it stays zero
-            self.noise_multiplier = (
-                self.noise_multiplier ** (-2) - (2 * unclipped_num_std) ** (-2)
-            ) ** (-1 / 2)
         self.sample_size = 0
         self.unclipped_num = 0
 
@@ -129,8 +124,41 @@ class AdaClipDPOptimizer(DPOptimizer):
             _mark_as_processed(p.grad_sample)
 
     def add_noise(self):
-        super().add_noise()
+        """
+        Adds noise to clipped gradients using adjusted noise multiplier.
 
+        According to Theorem 1 in https://arxiv.org/pdf/1905.03871.pdf,
+        the effective noise multiplier for gradient noise is calculated as:
+        σ_eff = (σ^-2 - (2σ_u)^-2)^(-1/2)
+
+        where σ is the original noise_multiplier and σ_u is unclipped_num_std.
+
+        The original noise_multiplier is preserved for privacy accounting,
+        while this adjusted value is used only for noise generation.
+        """
+        # Calculate adjusted noise multiplier for gradient noise (Theorem 1)
+        if self.noise_multiplier > 0:
+            adjusted_noise_multiplier = (
+                self.noise_multiplier ** (-2) - (2 * self.unclipped_num_std) ** (-2)
+            ) ** (-1 / 2)
+        else:
+            adjusted_noise_multiplier = 0
+
+        # Add noise to gradients using adjusted noise multiplier
+        for p in self.params:
+            _check_processed_flag(p.summed_grad)
+
+            noise = _generate_noise(
+                std=adjusted_noise_multiplier * self.max_grad_norm,
+                reference=p.summed_grad,
+                generator=self.generator,
+                secure_mode=self.secure_mode,
+            )
+            p.grad = (p.summed_grad + noise).view_as(p)
+
+            _mark_as_processed(p.summed_grad)
+
+        # Add noise to unclipped count
         unclipped_num_noise = _generate_noise(
             std=self.unclipped_num_std,
             reference=self.unclipped_num.float(),
