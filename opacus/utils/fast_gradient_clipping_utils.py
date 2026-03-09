@@ -244,7 +244,19 @@ class DPLossFastGradientClipping:
             # This variable is necessary for ghost clipping to work with generative NLP tasks.
             loss_per_sample = loss_per_sample.view(shape[0], shape[1])  # BxT
             if self.loss_reduction == "mean":
-                loss_per_sample = loss_per_sample.mean(dim=1)  # B
+                # When the criterion has ignore_index, positions matching it
+                # produce zero loss but should also be excluded from the
+                # denominator (matching PyTorch's CrossEntropyLoss behavior).
+                ignore_index = getattr(self.criterion, "ignore_index", None)
+                if ignore_index is not None and len(args) >= 2:
+                    targets = args[1]
+                    if "target" in kwargs:
+                        targets = kwargs["target"]
+                    mask = targets.view(shape[0], shape[1]) != ignore_index
+                    num_valid = mask.sum(dim=1).clamp(min=1)
+                    loss_per_sample = loss_per_sample.sum(dim=1) / num_valid  # B
+                else:
+                    loss_per_sample = loss_per_sample.mean(dim=1)  # B
             elif self.loss_reduction == "sum":
                 loss_per_sample = loss_per_sample.sum(dim=1)  # B
             else:
