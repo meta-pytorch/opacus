@@ -22,6 +22,7 @@ from hypothesis import given, settings
 from opacus.utils.per_sample_gradients_utils import (
     check_per_sample_gradients_are_correct,
     get_grad_sample_modes,
+    get_per_sample_gradient_diagnostics,
 )
 from torch import nn
 
@@ -152,3 +153,76 @@ class PerSampleGradientsUtilsTest(unittest.TestCase):
             return
 
         self.per_sample_grads_utils_test(x, linear, grad_sample_mode, N == 0)
+
+
+class DiagnosticsUtilsTest(unittest.TestCase):
+    """Tests for the public get_per_sample_gradient_diagnostics API."""
+
+    def test_diagnostics_output_structure(self):
+        """Verify the diagnostics report has the expected dictionary structure."""
+        model = nn.Linear(8, 4)
+        x = torch.randn(2, 8)
+
+        report = get_per_sample_gradient_diagnostics(x, model)
+
+        # Top-level keys
+        self.assertIn("passed", report)
+        self.assertIn("num_parameters", report)
+        self.assertIn("reductions", report)
+        self.assertIsInstance(report["passed"], bool)
+        self.assertIsInstance(report["num_parameters"], int)
+
+        # Reduction-level keys
+        for reduction in ["sum", "mean"]:
+            self.assertIn(reduction, report["reductions"])
+            red_report = report["reductions"][reduction]
+            self.assertIn("passed", red_report)
+            self.assertIn("parameters", red_report)
+
+            # Parameter-level keys
+            for param_name, param_report in red_report["parameters"].items():
+                self.assertIn("passed", param_report)
+                self.assertIn("shape_match", param_report)
+                self.assertIn("opacus_shape", param_report)
+                self.assertIn("microbatch_shape", param_report)
+                self.assertIn("opacus_l2_norm", param_report)
+                self.assertIn("microbatch_l2_norm", param_report)
+                self.assertIn("mse", param_report)
+                self.assertIn("l1_loss", param_report)
+
+    def test_diagnostics_linear_passes(self):
+        """Verify that a standard nn.Linear model passes diagnostics."""
+        model = nn.Linear(10, 5, bias=True)
+        x = torch.randn(4, 10)
+
+        report = get_per_sample_gradient_diagnostics(x, model)
+
+        self.assertTrue(report["passed"])
+        self.assertEqual(report["num_parameters"], 2)  # weight + bias
+        for reduction in ["sum", "mean"]:
+            red_report = report["reductions"][reduction]
+            self.assertTrue(red_report["passed"])
+            for param_name, param_report in red_report["parameters"].items():
+                self.assertTrue(param_report["passed"])
+                self.assertTrue(param_report["shape_match"])
+
+    def test_layer_norm(self):
+        """Verify diagnostics pass for nn.LayerNorm."""
+        W = 8
+        model = nn.LayerNorm(W, elementwise_affine=True)
+        x = torch.randn(4, 6, W)
+
+        report = get_per_sample_gradient_diagnostics(x, model)
+        self.assertTrue(report["passed"])
+
+    def test_public_import_path(self):
+        """Verify the public import from opacus.utils works."""
+        from opacus.utils import (
+            check_per_sample_gradients_are_correct as check_fn,
+        )
+        from opacus.utils import (
+            get_per_sample_gradient_diagnostics as diag_fn,
+        )
+
+        self.assertTrue(callable(check_fn))
+        self.assertTrue(callable(diag_fn))

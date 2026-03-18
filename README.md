@@ -131,6 +131,33 @@ of blogposts and talks:
 Check out the [FAQ](https://opacus.ai/docs/faq) page for answers to some of the
 most frequently asked questions about differential privacy and Opacus.
 
+## Verifying Per-Sample Gradients
+
+If you implement custom layers or grad samplers, you can use
+`get_per_sample_gradient_diagnostics` to verify that Opacus computes
+per-sample gradients correctly for your model. It compares Opacus's optimized
+computation against a reliable (but slow) micro-batch reference and returns a
+detailed per-parameter report.
+
+```python
+import torch
+from opacus.utils import get_per_sample_gradient_diagnostics
+
+model = MyCustomModel()
+x = torch.randn(8, 16)  # sample batch
+
+report = get_per_sample_gradient_diagnostics(x, model)
+if report["passed"]:
+    print("All per-sample gradients are correct!")
+else:
+    for name, p in report["reductions"]["mean"]["parameters"].items():
+        if not p["passed"]:
+            print(f"FAIL {name}: MSE={p['mse']:.2e}, L1={p['l1_loss']:.2e}")
+```
+
+The simpler `check_per_sample_gradients_are_correct` function is also available
+if you only need a boolean pass/fail result.
+
 ## Contributing
 
 See the
