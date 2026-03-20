@@ -15,9 +15,10 @@
 import unittest
 
 import torch
-from opacus.data_loader import CollateFnWithEmpty, DPDataLoader, wrap_collate_with_empty
 from torch.utils.data import DataLoader, TensorDataset
 from torch.utils.data._utils.collate import default_collate
+
+from opacus.data_loader import CollateFnWithEmpty, DPDataLoader, wrap_collate_with_empty
 
 
 class DPDataLoaderTest(unittest.TestCase):
@@ -150,8 +151,30 @@ class CollateFnWithEmptyTest(unittest.TestCase):
         self.assertEqual(empty_result.shape[0], 0)  # Batch dimension should be 0
         self.assertEqual(empty_result.shape[1], 2)  # Other dimensions preserved
 
-    def test_empty_batch_before_first_returns_empty_list(self) -> None:
-        """Test that processing empty batch first returns empty list with warning"""
+    def test_empty_batch_before_first_returns_zero_tensors(self) -> None:
+        """Test that processing empty batch first returns zero-valued tensors when shapes/dtypes provided"""
+        collate_fn = CollateFnWithEmpty(
+            default_collate,
+            sample_empty_shapes=[(0, 3), (0,)],
+            dtypes=[torch.float32, torch.int64],
+        )
+
+        with self.assertLogs("opacus.data_loader", level="WARNING") as log:
+            result = collate_fn([])
+
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0].shape, (0, 3))
+        self.assertEqual(result[0].dtype, torch.float32)
+        self.assertTrue(torch.equal(result[0], torch.zeros(0, 3, dtype=torch.float32)))
+        self.assertEqual(result[1].shape, (0,))
+        self.assertEqual(result[1].dtype, torch.int64)
+        self.assertTrue(
+            any("First batch is empty" in message for message in log.output)
+        )
+
+    def test_empty_first_batch_without_shapes_returns_empty_list(self) -> None:
+        """Test fallback to empty list when sample_empty_shapes/dtypes not provided"""
         collate_fn = CollateFnWithEmpty(default_collate)
 
         with self.assertLogs("opacus.data_loader", level="WARNING") as log:
@@ -324,3 +347,101 @@ class CollateFnWithEmptyTest(unittest.TestCase):
             collate_fn([])
 
         self.assertIn("Unsupported batch type", str(context.exception))
+
+    def test_empty_first_batch_shapes_match_dataset(self) -> None:
+        """Test zero-valued tensors have correct shapes and dtypes for multi-dim data"""
+        collate_fn = CollateFnWithEmpty(
+            default_collate,
+            sample_empty_shapes=[(0, 3, 4), (0, 5)],
+            dtypes=[torch.float64, torch.int32],
+        )
+
+        with self.assertLogs("opacus.data_loader", level="WARNING"):
+            result = collate_fn([])
+
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0].shape, (0, 3, 4))
+        self.assertEqual(result[0].dtype, torch.float64)
+        self.assertEqual(result[1].shape, (0, 5))
+        self.assertEqual(result[1].dtype, torch.int32)
+        # All values should be zero
+        self.assertEqual(result[0].numel(), 0)
+        self.assertEqual(result[1].numel(), 0)
+
+    def test_empty_first_batch_then_normal_batches(self) -> None:
+        """Test transition: empty first batch returns zero tensors, then normal batches work"""
+        collate_fn = CollateFnWithEmpty(
+            default_collate,
+            sample_empty_shapes=[(0, 2)],
+            dtypes=[torch.float32],
+        )
+
+        # First batch is empty -> zero tensors fallback
+        with self.assertLogs("opacus.data_loader", level="WARNING"):
+            result = collate_fn([])
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].shape, (0, 2))
+
+        # Second batch is non-empty -> learns structure
+        batch = [torch.tensor([1.0, 2.0]), torch.tensor([3.0, 4.0])]
+        result = collate_fn(batch)
+        self.assertTrue(torch.is_tensor(result))
+        self.assertEqual(result.shape, (2, 2))
+
+        # Third batch is empty -> uses learned structure via _make_empty_batch
+        result = collate_fn([])
+        self.assertTrue(torch.is_tensor(result))
+        self.assertEqual(result.shape[0], 0)
+        self.assertEqual(result.shape[1], 2)
+
+
+class DPDataLoaderEmptyFirstBatchTest(unittest.TestCase):
+    """Tests for DPDataLoader when the first batch is empty"""
+
+    def test_empty_first_batch_with_dp_dataloader(self) -> None:
+        """End-to-end test: DPDataLoader with empty first batch returns zero-valued tensors"""
+        data_size = 10
+        dimension = 7
+        num_classes = 11
+
+        x = torch.randn(data_size, dimension)
+        y = torch.randint(low=0, high=num_classes, size=(data_size,))
+        dataset = TensorDataset(x, y)
+
+        # seed=0, sample_rate=0.05 on 10 items produces empty first batch
+        generator = torch.Generator().manual_seed(0)
+        data_loader = DPDataLoader(dataset, sample_rate=0.05, generator=generator)
+
+        batches = []
+        with self.assertLogs("opacus.data_loader", level="WARNING") as log:
+            for batch in data_loader:
+                batches.append(batch)
+
+        # First batch should be a list of zero-valued tensors (empty first batch fallback)
+        first_batch = batches[0]
+        self.assertIsInstance(first_batch, list)
+        self.assertEqual(len(first_batch), 2)
+        # x tensor: shape (0, 7), float32
+        self.assertEqual(first_batch[0].shape, (0, dimension))
+        self.assertEqual(first_batch[0].dtype, x.dtype)
+        # y tensor: shape (0,), int64
+        self.assertEqual(first_batch[1].shape, (0,))
+        self.assertEqual(first_batch[1].dtype, y.dtype)
+
+        # Verify warning was logged
+        self.assertTrue(
+            any("First batch is empty" in message for message in log.output)
+        )
+
+        # Subsequent non-empty batches should work normally
+        non_empty_found = False
+        for batch in batches[1:]:
+            if torch.is_tensor(batch[0]) and batch[0].shape[0] > 0:
+                non_empty_found = True
+                self.assertEqual(batch[0].shape[1], dimension)
+        self.assertTrue(
+            non_empty_found,
+            "Expected at least one non-empty batch after the first empty one",
+        )

@@ -13,17 +13,17 @@
 # limitations under the License.
 import copy
 import logging
-from typing import Any, List, Mapping, Optional, Union
+from typing import Any, List, Mapping, Optional, Sequence, Tuple, Type, Union
 
 import torch
-from opacus.utils.uniform_sampler import (
-    DistributedUniformWithReplacementSampler,
-    UniformWithReplacementSampler,
-)
 from torch.utils.data import BatchSampler, DataLoader, Dataset, IterableDataset, Sampler
 from torch.utils.data._utils.collate import default_collate
 from torch.utils.data.dataloader import _collate_fn_t
 
+from opacus.utils.uniform_sampler import (
+    DistributedUniformWithReplacementSampler,
+    UniformWithReplacementSampler,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -70,10 +70,14 @@ class CollateFnWithEmpty:
         collator_fn: Optional[_collate_fn_t],
         batch_first: bool = True,
         rand_on_empty: bool = False,
+        sample_empty_shapes: Optional[Sequence[Tuple]] = None,
+        dtypes: Optional[Sequence[Union[torch.dtype, Type]]] = None,
     ) -> None:
         self.wrapped_collator_fn = collator_fn
         self.batch_first = batch_first
         self.rand_on_empty = rand_on_empty
+        self.sample_empty_shapes = sample_empty_shapes
+        self.dtypes = dtypes
         self.first_batch = None
 
     def __call__(self, batch: List[Any]) -> Union[torch.Tensor, List, Mapping]:
@@ -86,12 +90,25 @@ class CollateFnWithEmpty:
                 self.first_batch = copy.deepcopy(output)
         else:
             if self.first_batch is None:
-                logger.warning(
-                    "First batch is empty. We are using an empty list as a batch. "
-                    "This may cause issues if the model expects a different batch format. "
-                    "To fix, use more data, increase epsilon, or increase sampling rate."
-                )
-                return []
+                if self.sample_empty_shapes is not None and self.dtypes is not None:
+                    logger.warning(
+                        "First batch is empty. We are using a list of zero-valued "
+                        "tensors as a batch. This may cause issues if the model "
+                        "expects a different batch format. To fix, use more data, "
+                        "increase epsilon, or increase sampling rate."
+                    )
+                    return [
+                        torch.zeros(shape, dtype=dtype)
+                        for shape, dtype in zip(self.sample_empty_shapes, self.dtypes)
+                    ]
+                else:
+                    logger.warning(
+                        "First batch is empty. We are using an empty list as a "
+                        "batch. This may cause issues if the model expects a "
+                        "different batch format. To fix, use more data, increase "
+                        "epsilon, or increase sampling rate."
+                    )
+                    return []
 
             # materialize into empty with the same structure as list/dict
             output = self._make_empty_batch(self.first_batch)
@@ -135,6 +152,8 @@ def wrap_collate_with_empty(
     collate_fn: Optional[_collate_fn_t],
     batch_first: bool = True,
     rand_on_empty: bool = False,
+    sample_empty_shapes: Optional[Sequence[Tuple]] = None,
+    dtypes: Optional[Sequence[Union[torch.dtype, Type]]] = None,
 ) -> CollateFnWithEmpty:
     """
     Wraps given collate function to handle empty batches.
@@ -167,8 +186,22 @@ def wrap_collate_with_empty(
     """
 
     return CollateFnWithEmpty(
-        collate_fn, batch_first=batch_first, rand_on_empty=rand_on_empty
+        collate_fn,
+        batch_first=batch_first,
+        rand_on_empty=rand_on_empty,
+        sample_empty_shapes=sample_empty_shapes,
+        dtypes=dtypes,
     )
+
+
+def shape_safe(x: Any) -> Tuple:
+    """Exception-safe getter for ``shape`` attribute."""
+    return getattr(x, "shape", ())
+
+
+def dtype_safe(x: Any) -> Union[torch.dtype, Type]:
+    """Exception-safe getter for ``dtype`` attribute."""
+    return getattr(x, "dtype", type(x))
 
 
 class DPDataLoader(DataLoader):
@@ -245,6 +278,9 @@ class DPDataLoader(DataLoader):
                 sample_rate=sample_rate,
                 generator=generator,
             )
+        sample_empty_shapes = [(0, *shape_safe(x)) for x in dataset[0]]
+        dtypes = [dtype_safe(x) for x in dataset[0]]
+
         if collate_fn is None:
             collate_fn = default_collate
 
@@ -260,6 +296,8 @@ class DPDataLoader(DataLoader):
                 collate_fn=collate_fn,
                 batch_first=batch_first,
                 rand_on_empty=rand_on_empty,
+                sample_empty_shapes=sample_empty_shapes,
+                dtypes=dtypes,
             ),
             generator=generator,
             **kwargs,
