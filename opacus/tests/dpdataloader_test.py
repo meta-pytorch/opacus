@@ -253,7 +253,7 @@ class CollateFnWithEmptyTest(unittest.TestCase):
 
         # First process non-empty batch - shape will be [batch, features]
         batch = [torch.tensor([1, 2, 3])]
-        result = collate_fn(batch)
+        _ = collate_fn(batch)
 
         # For empty batch with batch_first=False, batch dim should be at index 1
         empty_result = collate_fn([])
