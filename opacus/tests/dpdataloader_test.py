@@ -15,10 +15,9 @@
 import unittest
 
 import torch
+from opacus.data_loader import CollateFnWithEmpty, DPDataLoader, wrap_collate_with_empty
 from torch.utils.data import DataLoader, TensorDataset
 from torch.utils.data._utils.collate import default_collate
-
-from opacus.data_loader import CollateFnWithEmpty, DPDataLoader, wrap_collate_with_empty
 
 
 class DPDataLoaderTest(unittest.TestCase):

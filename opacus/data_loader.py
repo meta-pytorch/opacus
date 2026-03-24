@@ -16,14 +16,14 @@ import logging
 from typing import Any, List, Mapping, Optional, Sequence, Tuple, Type, Union
 
 import torch
-from torch.utils.data import BatchSampler, DataLoader, Dataset, IterableDataset, Sampler
-from torch.utils.data._utils.collate import default_collate
-from torch.utils.data.dataloader import _collate_fn_t
-
 from opacus.utils.uniform_sampler import (
     DistributedUniformWithReplacementSampler,
     UniformWithReplacementSampler,
 )
+from torch.utils.data import BatchSampler, DataLoader, Dataset, IterableDataset, Sampler
+from torch.utils.data._utils.collate import default_collate
+from torch.utils.data.dataloader import _collate_fn_t
+
 
 logger = logging.getLogger(__name__)
 
