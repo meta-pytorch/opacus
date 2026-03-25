@@ -384,9 +384,7 @@ def get_per_sample_gradient_diagnostics(
 
     return {
         "passed": all_passed,
-        "num_parameters": len(
-            next(iter(reduction_results.values()))["parameters"]
-        ),
+        "num_parameters": len(next(iter(reduction_results.values()))["parameters"]),
         "reductions": reduction_results,
     }
 
@@ -425,19 +423,13 @@ def _get_diagnostics_for_reduction(
 
         if shape_match:
             values_close = bool(
-                torch.allclose(
-                    microbatch_grad_sample, opacus_grad_sample, atol, rtol
-                )
+                torch.allclose(microbatch_grad_sample, opacus_grad_sample, atol, rtol)
             )
             mse = float(
-                torch.nn.functional.mse_loss(
-                    opacus_grad_sample, microbatch_grad_sample
-                )
+                torch.nn.functional.mse_loss(opacus_grad_sample, microbatch_grad_sample)
             )
             l1_loss = float(
-                torch.nn.functional.l1_loss(
-                    opacus_grad_sample, microbatch_grad_sample
-                )
+                torch.nn.functional.l1_loss(opacus_grad_sample, microbatch_grad_sample)
             )
         else:
             values_close = False
