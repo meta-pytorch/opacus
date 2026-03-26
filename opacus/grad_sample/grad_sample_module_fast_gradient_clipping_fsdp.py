@@ -258,3 +258,4 @@ class GradSampleModuleFastGradientClippingFSDP(
             strict=strict,
             max_grad_norm=max_grad_norm,
         )
+        self.grad_accumulation_hook = None

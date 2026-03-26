@@ -69,6 +69,7 @@ class GradSampleModuleNoOp(GradSampleHooksNoOp, AbstractGradSampleModule):
             batch_first=batch_first,
             loss_reduction=loss_reduction,
         )
+        self.grad_accumulation_hook = None
 
     def forward(self, x: torch.Tensor, *args, **kwargs):
         return self._module.forward(x, *args, **kwargs)

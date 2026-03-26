@@ -236,14 +236,13 @@ class GradSampleHooks(AbstractGradSampleHooks):
                     handle.remove()
                 delattr(p, "ddp_hooks")
 
-        if not hasattr(self, "autograd_grad_sample_hooks"):
-            raise ValueError("Asked to remove hooks, but no hooks found")
-        else:
+        if hasattr(self, "autograd_grad_sample_hooks"):
             while self.autograd_grad_sample_hooks:
                 handle = self.autograd_grad_sample_hooks.pop()
                 handle.remove()
             delattr(self, "autograd_grad_sample_hooks")
-            delattr(self._module, "autograd_grad_sample_hooks")
+            if hasattr(self._module, "autograd_grad_sample_hooks"):
+                delattr(self._module, "autograd_grad_sample_hooks")
 
         # Remove functorch hooks
         for _module_name, module in trainable_modules(self._module):
@@ -544,6 +543,7 @@ class GradSampleModule(GradSampleHooks, AbstractGradSampleModule):
             strict=strict,
             force_functorch=force_functorch,
         )
+        self.grad_accumulation_hook = None
 
     def forward(self, *args, **kwargs):
         return self._module(*args, **kwargs)

@@ -360,3 +360,4 @@ class GradSampleModuleFastGradientClipping(
             max_grad_norm=max_grad_norm,
             use_ghost_clipping=use_ghost_clipping,
         )
+        self.grad_accumulation_hook = None

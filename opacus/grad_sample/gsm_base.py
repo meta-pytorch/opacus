@@ -116,6 +116,11 @@ class AbstractGradSampleHooks(ABC):
         """
         try:
             self.remove_hooks()
+        except Exception as e:
+            logger.warning(
+                f"Failed to remove hooks during cleanup: {e}. "
+                "Attempting to clean up attributes anyway."
+            )
         finally:
             for attr in OPACUS_PARAM_MONKEYPATCH_ATTRS:
                 for p in self._module.parameters():
