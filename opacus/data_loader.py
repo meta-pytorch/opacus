@@ -11,10 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import copy
 import logging
-from functools import partial
-from typing import Any, List, Optional, Sequence, Tuple, Type, Union
+from typing import Any, List, Mapping, Optional, Sequence, Tuple, Type, Union
 
 import torch
 from opacus.utils.uniform_sampler import (
@@ -29,91 +28,179 @@ from torch.utils.data.dataloader import _collate_fn_t
 logger = logging.getLogger(__name__)
 
 
-def collate(
-    batch: List[torch.Tensor],
-    *,
-    collate_fn: Optional[_collate_fn_t],
-    sample_empty_shapes: Sequence[Tuple],
-    dtypes: Sequence[Union[torch.dtype, Type]],
-):
+class CollateFnWithEmpty:
     """
-    Wraps `collate_fn` to handle empty batches.
+    Collate function wrapper that handles empty batches by preserving batch structure.
 
-    Default `collate_fn` implementations typically can't handle batches of length zero.
-    Since this is a possible case for poisson sampling, we need to wrap the collate
-    method, producing tensors with the correct shape and size (albeit the batch
-    dimension being zero-size)
+    This wrapper is stateful and learns the expected batch structure from the first
+    non-empty batch it processes. When an empty batch is encountered, it generates
+    an empty batch with the same structure (tensors, dicts, lists, or nested combinations)
+    but with zero-length batch dimensions.
+
+    This is particularly useful for Poisson sampling in differential privacy, where
+    batch sizes can vary and occasionally result in empty batches.
 
     Args:
-        batch: List of tensort to be passed to collate_fn implementation
-        collate_fn: Collame method to be wrapped
-        sample_empty_shapes: Sample tensors with the expected shape
-        dtypes: Expected dtypes
+        collator_fn: The original collate function to wrap. If None, returns batch as-is.
+        batch_first: If True, batch dimension is the first dimension (index 0).
+            If False, batch dimension is the second dimension (index 1).
+            Default: True
+        rand_on_empty: If True, returns tensors filled with random values (0 or 1)
+            with batch dimension set to 1 when encountering empty batches.
+            If False, returns tensors with batch dimension set to 0.
+            Default: False
 
-    Returns:
-        Batch tensor(s)
+    Example:
+        >>> collate_fn = CollateFnWithEmpty(default_collate)
+        >>> # First batch: [{"x": tensor([1, 2]), "y": tensor([3, 4])}]
+        >>> # Empty batch: [] -> {"x": tensor([]), "y": tensor([])}
+
+    Note:
+        The first batch processed must be non-empty, as it defines the structure
+        for all subsequent empty batches.
+
+        Only torch.Tensor, dict (Mapping), list, and tuple types are supported.
+        If your collate function returns other types, a TypeError will be raised
+        to preserve DP guarantees (returning non-empty data for empty batches
+        would violate the privacy guarantee).
     """
 
-    if len(batch) > 0:
-        return collate_fn(batch)
-    else:
-        return [
-            torch.zeros(shape, dtype=dtype)
-            for shape, dtype in zip(sample_empty_shapes, dtypes)
-        ]
+    def __init__(
+        self,
+        collator_fn: Optional[_collate_fn_t],
+        batch_first: bool = True,
+        rand_on_empty: bool = False,
+        sample_empty_shapes: Optional[Sequence[Tuple]] = None,
+        dtypes: Optional[Sequence[Union[torch.dtype, Type]]] = None,
+    ) -> None:
+        self.wrapped_collator_fn = collator_fn
+        self.batch_first = batch_first
+        self.rand_on_empty = rand_on_empty
+        self.sample_empty_shapes = sample_empty_shapes
+        self.dtypes = dtypes
+        self.first_batch = None
+
+    def __call__(self, batch: List[Any]) -> Union[torch.Tensor, List, Mapping]:
+        if len(batch) > 0:
+            if not self.wrapped_collator_fn:
+                output = batch
+            else:
+                output = self.wrapped_collator_fn(batch)
+            if self.first_batch is None:
+                self.first_batch = copy.deepcopy(output)
+        else:
+            if self.first_batch is None:
+                if self.sample_empty_shapes is not None and self.dtypes is not None:
+                    logger.warning(
+                        "First batch is empty. We are using a list of zero-valued "
+                        "tensors as a batch. This may cause issues if the model "
+                        "expects a different batch format. To fix, use more data, "
+                        "increase epsilon, or increase sampling rate."
+                    )
+                    return [
+                        torch.zeros(shape, dtype=dtype)
+                        for shape, dtype in zip(self.sample_empty_shapes, self.dtypes)
+                    ]
+                else:
+                    logger.warning(
+                        "First batch is empty. We are using an empty list as a "
+                        "batch. This may cause issues if the model expects a "
+                        "different batch format. To fix, use more data, increase "
+                        "epsilon, or increase sampling rate."
+                    )
+                    return []
+
+            # materialize into empty with the same structure as list/dict
+            output = self._make_empty_batch(self.first_batch)
+
+        return output
+
+    def _make_empty_batch(
+        self, sample: Union[torch.Tensor, Mapping, List, Any]
+    ) -> Union[torch.Tensor, Mapping, List, Any]:
+        if torch.is_tensor(sample):
+            shape = list(sample.shape)
+            # If it's at least 1D, set batch dim to 1; otherwise make a 0-length 1D tensor
+            batch_dim = 0 if self.batch_first else 1
+            shape[batch_dim] = 1 if self.rand_on_empty else 0
+            if self.rand_on_empty:
+                return torch.randint(
+                    0, 2, shape, dtype=sample.dtype, device=sample.device
+                )
+            else:
+                return torch.empty(shape, dtype=sample.dtype, device=sample.device)
+
+        if isinstance(sample, Mapping):
+            return {k: self._make_empty_batch(v) for k, v in sample.items()}
+
+        if isinstance(sample, (list, tuple)):
+            converted = [self._make_empty_batch(v) for v in sample]
+            return type(sample)(converted)
+
+        # Unsupported type - raise error to preserve DP guarantees
+        raise TypeError(
+            f"Unsupported batch type: {type(sample).__name__}. "
+            f"CollateFnWithEmpty only supports batches containing torch.Tensor, "
+            f"dict (Mapping), list, or tuple types. "
+            f"If you need support for a different output type, please open an issue at "
+            f"Opacus or submit a PR."
+        )
 
 
 def wrap_collate_with_empty(
     *,
     collate_fn: Optional[_collate_fn_t],
-    sample_empty_shapes: Sequence[Tuple],
-    dtypes: Sequence[Union[torch.dtype, Type]],
-):
+    batch_first: bool = True,
+    rand_on_empty: bool = False,
+    sample_empty_shapes: Optional[Sequence[Tuple]] = None,
+    dtypes: Optional[Sequence[Union[torch.dtype, Type]]] = None,
+) -> CollateFnWithEmpty:
     """
     Wraps given collate function to handle empty batches.
 
+    This function returns a stateful ``CollateFnWithEmpty`` instance that learns
+    the batch structure from the first non-empty batch and uses this structure
+    to generate properly shaped empty batches when needed.
+
     Args:
-        collate_fn: collate function to wrap
-        sample_empty_shapes: expected shape for a batch of size 0. Input is a sequence -
-            one for each tensor in the dataset
+        collate_fn: collate function to wrap. If None, returns batches as-is.
+        batch_first: Flag to indicate if the input tensor to the corresponding module
+            has the first dimension representing the batch. If set to True, dimensions on
+            input tensor are expected be ``[batch_size, ...]``, otherwise
+            ``[K, batch_size, ...]``
+        rand_on_empty: set ``True`` to return a batch containing random numbers when encountering
+            empty batches rather than tensors with zero-length batch dimensions
 
     Returns:
-        New collate function, which is equivalent to input ``collate_fn`` for non-empty
-        batches and outputs empty tensors with shapes from ``sample_empty_shapes`` if
-        the input batch is of size 0
+        CollateFnWithEmpty: A callable that is equivalent to input ``collate_fn`` for non-empty
+            batches and outputs empty tensors with the same structure when the input batch is empty.
+            The structure is learned from the first non-empty batch.
+
+    Example:
+        >>> from torch.utils.data._utils.collate import default_collate
+        >>> collate = wrap_collate_with_empty(collate_fn=default_collate)
+        >>> # First batch defines structure
+        >>> result = collate([{"x": torch.tensor([1, 2])}])
+        >>> # Empty batch uses learned structure
+        >>> empty = collate([])  # Returns {"x": torch.tensor([])}
     """
 
-    return partial(
-        collate,
-        collate_fn=collate_fn,
+    return CollateFnWithEmpty(
+        collate_fn,
+        batch_first=batch_first,
+        rand_on_empty=rand_on_empty,
         sample_empty_shapes=sample_empty_shapes,
         dtypes=dtypes,
     )
 
 
 def shape_safe(x: Any) -> Tuple:
-    """
-    Exception-safe getter for ``shape`` attribute
-
-    Args:
-        x: any object
-
-    Returns:
-        ``x.shape`` if attribute exists, empty tuple otherwise
-    """
+    """Exception-safe getter for ``shape`` attribute."""
     return getattr(x, "shape", ())
 
 
 def dtype_safe(x: Any) -> Union[torch.dtype, Type]:
-    """
-    Exception-safe getter for ``dtype`` attribute
-
-    Args:
-        x: any object
-
-    Returns:
-        ``x.dtype`` if attribute exists, type of x otherwise
-    """
+    """Exception-safe getter for ``dtype`` attribute."""
     return getattr(x, "dtype", type(x))
 
 
@@ -149,6 +236,8 @@ class DPDataLoader(DataLoader):
         drop_last: bool = False,
         generator=None,
         distributed: bool = False,
+        batch_first: bool = True,
+        rand_on_empty: bool = False,
         **kwargs,
     ):
         """
@@ -170,6 +259,8 @@ class DPDataLoader(DataLoader):
             distributed: set ``True`` if you'll be using DPDataLoader in a DDP environment
                 Selects between ``DistributedUniformWithReplacementSampler`` and
                 ``UniformWithReplacementSampler`` sampler implementations
+            rand_on_empty: set ``True`` to return a batch containing random numbers when encountering
+                empty batches rather than tensors with zero-length batch dimensions
         """
 
         self.sample_rate = sample_rate
@@ -189,6 +280,7 @@ class DPDataLoader(DataLoader):
             )
         sample_empty_shapes = [(0, *shape_safe(x)) for x in dataset[0]]
         dtypes = [dtype_safe(x) for x in dataset[0]]
+
         if collate_fn is None:
             collate_fn = default_collate
 
@@ -202,6 +294,8 @@ class DPDataLoader(DataLoader):
             batch_sampler=batch_sampler,
             collate_fn=wrap_collate_with_empty(
                 collate_fn=collate_fn,
+                batch_first=batch_first,
+                rand_on_empty=rand_on_empty,
                 sample_empty_shapes=sample_empty_shapes,
                 dtypes=dtypes,
             ),
@@ -211,7 +305,13 @@ class DPDataLoader(DataLoader):
 
     @classmethod
     def from_data_loader(
-        cls, data_loader: DataLoader, *, distributed: bool = False, generator=None
+        cls,
+        data_loader: DataLoader,
+        *,
+        distributed: bool = False,
+        generator=None,
+        batch_first: bool = True,
+        rand_on_empty: bool = False,
     ):
         """
         Creates new ``DPDataLoader`` based on passed ``data_loader`` argument.
@@ -221,6 +321,14 @@ class DPDataLoader(DataLoader):
             distributed: set ``True`` if you'll be using DPDataLoader in a DDP environment
             generator: Random number generator used to sample elements. Defaults to
                 generator from the original data loader.
+            batch_first: Flag to indicate if the input tensor to the corresponding module
+                has the first dimension representing the batch. If set to True, dimensions on
+                input tensor are expected be ``[batch_size, ...]``, otherwise
+                ``[K, batch_size, ...]``
+            rand_on_empty: set ``True`` to return a batch containing random numbers when encountering
+                empty batches rather than tensors with zero-length batch dimensions
+
+
 
         Returns:
             New DPDataLoader instance, with all attributes and parameters inherited
@@ -250,6 +358,8 @@ class DPDataLoader(DataLoader):
             prefetch_factor=data_loader.prefetch_factor,
             persistent_workers=data_loader.persistent_workers,
             distributed=distributed,
+            batch_first=batch_first,
+            rand_on_empty=rand_on_empty,
         )
 
 
