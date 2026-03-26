@@ -38,10 +38,9 @@
 <span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
 <span class="c1"># See the License for the specific language governing permissions and</span>
 <span class="c1"># limitations under the License.</span>
-
+<span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">import</span> <span class="nn">torch</span>
 <span class="kn">from</span> <span class="nn">opacus.utils.uniform_sampler</span> <span class="kn">import</span> <span class="p">(</span>
@@ -56,40 +55,125 @@
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="collate">
-<a class="viewcode-back" href="../../data_loader.html#opacus.data_loader.collate">[docs]</a>
-<span class="k">def</span> <span class="nf">collate</span><span class="p">(</span>
-    <span class="n">batch</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">collate_fn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">_collate_fn_t</span><span class="p">],</span>
-    <span class="n">sample_empty_shapes</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Tuple</span><span class="p">],</span>
-    <span class="n">dtypes</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">Type</span><span class="p">]],</span>
-<span class="p">):</span>
+<div class="viewcode-block" id="CollateFnWithEmpty">
+<a class="viewcode-back" href="../../data_loader.html#opacus.data_loader.CollateFnWithEmpty">[docs]</a>
+<span class="k">class</span> <span class="nc">CollateFnWithEmpty</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""</span>
-<span class="sd">    Wraps `collate_fn` to handle empty batches.</span>
+<span class="sd">    Collate function wrapper that handles empty batches by preserving batch structure.</span>
 
-<span class="sd">    Default `collate_fn` implementations typically can't handle batches of length zero.</span>
-<span class="sd">    Since this is a possible case for poisson sampling, we need to wrap the collate</span>
-<span class="sd">    method, producing tensors with the correct shape and size (albeit the batch</span>
-<span class="sd">    dimension being zero-size)</span>
+<span class="sd">    This wrapper is stateful and learns the expected batch structure from the first</span>
+<span class="sd">    non-empty batch it processes. When an empty batch is encountered, it generates</span>
+<span class="sd">    an empty batch with the same structure (tensors, dicts, lists, or nested combinations)</span>
+<span class="sd">    but with zero-length batch dimensions.</span>
+
+<span class="sd">    This is particularly useful for Poisson sampling in differential privacy, where</span>
+<span class="sd">    batch sizes can vary and occasionally result in empty batches.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        batch: List of tensort to be passed to collate_fn implementation</span>
-<span class="sd">        collate_fn: Collame method to be wrapped</span>
-<span class="sd">        sample_empty_shapes: Sample tensors with the expected shape</span>
-<span class="sd">        dtypes: Expected dtypes</span>
+<span class="sd">        collator_fn: The original collate function to wrap. If None, returns batch as-is.</span>
+<span class="sd">        batch_first: If True, batch dimension is the first dimension (index 0).</span>
+<span class="sd">            If False, batch dimension is the second dimension (index 1).</span>
+<span class="sd">            Default: True</span>
+<span class="sd">        rand_on_empty: If True, returns tensors filled with random values (0 or 1)</span>
+<span class="sd">            with batch dimension set to 1 when encountering empty batches.</span>
+<span class="sd">            If False, returns tensors with batch dimension set to 0.</span>
+<span class="sd">            Default: False</span>
 
-<span class="sd">    Returns:</span>
-<span class="sd">        Batch tensor(s)</span>
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; collate_fn = CollateFnWithEmpty(default_collate)</span>
+<span class="sd">        &gt;&gt;&gt; # First batch: [{"x": tensor([1, 2]), "y": tensor([3, 4])}]</span>
+<span class="sd">        &gt;&gt;&gt; # Empty batch: [] -&gt; {"x": tensor([]), "y": tensor([])}</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        The first batch processed must be non-empty, as it defines the structure</span>
+<span class="sd">        for all subsequent empty batches.</span>
+
+<span class="sd">        Only torch.Tensor, dict (Mapping), list, and tuple types are supported.</span>
+<span class="sd">        If your collate function returns other types, a TypeError will be raised</span>
+<span class="sd">        to preserve DP guarantees (returning non-empty data for empty batches</span>
+<span class="sd">        would violate the privacy guarantee).</span>
 <span class="sd">    """</span>
 
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">collate_fn</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="p">[</span>
-            <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">sample_empty_shapes</span><span class="p">,</span> <span class="n">dtypes</span><span class="p">)</span>
-        <span class="p">]</span></div>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">collator_fn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">_collate_fn_t</span><span class="p">],</span>
+        <span class="n">batch_first</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">rand_on_empty</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">sample_empty_shapes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Tuple</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">dtypes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">Type</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wrapped_collator_fn</span> <span class="o">=</span> <span class="n">collator_fn</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">batch_first</span> <span class="o">=</span> <span class="n">batch_first</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rand_on_empty</span> <span class="o">=</span> <span class="n">rand_on_empty</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_empty_shapes</span> <span class="o">=</span> <span class="n">sample_empty_shapes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dtypes</span> <span class="o">=</span> <span class="n">dtypes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">first_batch</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">wrapped_collator_fn</span><span class="p">:</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="n">batch</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wrapped_collator_fn</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">first_batch</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">first_batch</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">first_batch</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_empty_shapes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">dtypes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="s2">"First batch is empty. We are using a list of zero-valued "</span>
+                        <span class="s2">"tensors as a batch. This may cause issues if the model "</span>
+                        <span class="s2">"expects a different batch format. To fix, use more data, "</span>
+                        <span class="s2">"increase epsilon, or increase sampling rate."</span>
+                    <span class="p">)</span>
+                    <span class="k">return</span> <span class="p">[</span>
+                        <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+                        <span class="k">for</span> <span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_empty_shapes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dtypes</span><span class="p">)</span>
+                    <span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="s2">"First batch is empty. We are using an empty list as a "</span>
+                        <span class="s2">"batch. This may cause issues if the model expects a "</span>
+                        <span class="s2">"different batch format. To fix, use more data, increase "</span>
+                        <span class="s2">"epsilon, or increase sampling rate."</span>
+                    <span class="p">)</span>
+                    <span class="k">return</span> <span class="p">[]</span>
+
+            <span class="c1"># materialize into empty with the same structure as list/dict</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_empty_batch</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">first_batch</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">output</span>
+
+    <span class="k">def</span> <span class="nf">_make_empty_batch</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">sample</span><span class="p">):</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">sample</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="c1"># If it's at least 1D, set batch dim to 1; otherwise make a 0-length 1D tensor</span>
+            <span class="n">batch_dim</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_first</span> <span class="k">else</span> <span class="mi">1</span>
+            <span class="n">shape</span><span class="p">[</span><span class="n">batch_dim</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rand_on_empty</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rand_on_empty</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span>
+                    <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">sample</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">sample</span><span class="o">.</span><span class="n">device</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">sample</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">sample</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sample</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_empty_batch</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">sample</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sample</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="n">converted</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_make_empty_batch</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">sample</span><span class="p">]</span>
+            <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="n">sample</span><span class="p">)(</span><span class="n">converted</span><span class="p">)</span>
+
+        <span class="c1"># Unsupported type - raise error to preserve DP guarantees</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"Unsupported batch type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">. "</span>
+            <span class="sa">f</span><span class="s2">"CollateFnWithEmpty only supports batches containing torch.Tensor, "</span>
+            <span class="sa">f</span><span class="s2">"dict (Mapping), list, or tuple types. "</span>
+            <span class="sa">f</span><span class="s2">"If you need support for a different output type, please open an issue at "</span>
+            <span class="sa">f</span><span class="s2">"Opacus or submit a PR."</span>
+        <span class="p">)</span></div>
 
 
 
@@ -98,26 +182,45 @@
 <span class="k">def</span> <span class="nf">wrap_collate_with_empty</span><span class="p">(</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">collate_fn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">_collate_fn_t</span><span class="p">],</span>
-    <span class="n">sample_empty_shapes</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Tuple</span><span class="p">],</span>
-    <span class="n">dtypes</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">Type</span><span class="p">]],</span>
-<span class="p">):</span>
+    <span class="n">batch_first</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">rand_on_empty</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">sample_empty_shapes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Tuple</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">dtypes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">Type</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CollateFnWithEmpty</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Wraps given collate function to handle empty batches.</span>
 
+<span class="sd">    This function returns a stateful ``CollateFnWithEmpty`` instance that learns</span>
+<span class="sd">    the batch structure from the first non-empty batch and uses this structure</span>
+<span class="sd">    to generate properly shaped empty batches when needed.</span>
+
 <span class="sd">    Args:</span>
-<span class="sd">        collate_fn: collate function to wrap</span>
-<span class="sd">        sample_empty_shapes: expected shape for a batch of size 0. Input is a sequence -</span>
-<span class="sd">            one for each tensor in the dataset</span>
+<span class="sd">        collate_fn: collate function to wrap. If None, returns batches as-is.</span>
+<span class="sd">        batch_first: Flag to indicate if the input tensor to the corresponding module</span>
+<span class="sd">            has the first dimension representing the batch. If set to True, dimensions on</span>
+<span class="sd">            input tensor are expected be ``[batch_size, ...]``, otherwise</span>
+<span class="sd">            ``[K, batch_size, ...]``</span>
+<span class="sd">        rand_on_empty: set ``True`` to return a batch containing random numbers when encountering</span>
+<span class="sd">            empty batches rather than tensors with zero-length batch dimensions</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        New collate function, which is equivalent to input ``collate_fn`` for non-empty</span>
-<span class="sd">        batches and outputs empty tensors with shapes from ``sample_empty_shapes`` if</span>
-<span class="sd">        the input batch is of size 0</span>
+<span class="sd">        CollateFnWithEmpty: A callable that is equivalent to input ``collate_fn`` for non-empty</span>
+<span class="sd">            batches and outputs empty tensors with the same structure when the input batch is empty.</span>
+<span class="sd">            The structure is learned from the first non-empty batch.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; from torch.utils.data._utils.collate import default_collate</span>
+<span class="sd">        &gt;&gt;&gt; collate = wrap_collate_with_empty(collate_fn=default_collate)</span>
+<span class="sd">        &gt;&gt;&gt; # First batch defines structure</span>
+<span class="sd">        &gt;&gt;&gt; result = collate([{"x": torch.tensor([1, 2])}])</span>
+<span class="sd">        &gt;&gt;&gt; # Empty batch uses learned structure</span>
+<span class="sd">        &gt;&gt;&gt; empty = collate([])  # Returns {"x": torch.tensor([])}</span>
 <span class="sd">    """</span>
 
-    <span class="k">return</span> <span class="n">partial</span><span class="p">(</span>
-        <span class="n">collate</span><span class="p">,</span>
-        <span class="n">collate_fn</span><span class="o">=</span><span class="n">collate_fn</span><span class="p">,</span>
+    <span class="k">return</span> <span class="n">CollateFnWithEmpty</span><span class="p">(</span>
+        <span class="n">collate_fn</span><span class="p">,</span>
+        <span class="n">batch_first</span><span class="o">=</span><span class="n">batch_first</span><span class="p">,</span>
+        <span class="n">rand_on_empty</span><span class="o">=</span><span class="n">rand_on_empty</span><span class="p">,</span>
         <span class="n">sample_empty_shapes</span><span class="o">=</span><span class="n">sample_empty_shapes</span><span class="p">,</span>
         <span class="n">dtypes</span><span class="o">=</span><span class="n">dtypes</span><span class="p">,</span>
     <span class="p">)</span></div>
@@ -127,15 +230,7 @@
 <div class="viewcode-block" id="shape_safe">
 <a class="viewcode-back" href="../../data_loader.html#opacus.data_loader.shape_safe">[docs]</a>
 <span class="k">def</span> <span class="nf">shape_safe</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""</span>
-<span class="sd">    Exception-safe getter for ``shape`` attribute</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        x: any object</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        ``x.shape`` if attribute exists, empty tuple otherwise</span>
-<span class="sd">    """</span>
+<span class="w">    </span><span class="sd">"""Exception-safe getter for ``shape`` attribute."""</span>
     <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s2">"shape"</span><span class="p">,</span> <span class="p">())</span></div>
 
 
@@ -143,15 +238,7 @@
 <div class="viewcode-block" id="dtype_safe">
 <a class="viewcode-back" href="../../data_loader.html#opacus.data_loader.dtype_safe">[docs]</a>
 <span class="k">def</span> <span class="nf">dtype_safe</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">Type</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">"""</span>
-<span class="sd">    Exception-safe getter for ``dtype`` attribute</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        x: any object</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        ``x.dtype`` if attribute exists, type of x otherwise</span>
-<span class="sd">    """</span>
+<span class="w">    </span><span class="sd">"""Exception-safe getter for ``dtype`` attribute."""</span>
     <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s2">"dtype"</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">x</span><span class="p">))</span></div>
 
 
@@ -190,6 +277,8 @@
         <span class="n">drop_last</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">distributed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">batch_first</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">rand_on_empty</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">"""</span>
@@ -211,6 +300,8 @@
 <span class="sd">            distributed: set ``True`` if you'll be using DPDataLoader in a DDP environment</span>
 <span class="sd">                Selects between ``DistributedUniformWithReplacementSampler`` and</span>
 <span class="sd">                ``UniformWithReplacementSampler`` sampler implementations</span>
+<span class="sd">            rand_on_empty: set ``True`` to return a batch containing random numbers when encountering</span>
+<span class="sd">                empty batches rather than tensors with zero-length batch dimensions</span>
 <span class="sd">        """</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span> <span class="o">=</span> <span class="n">sample_rate</span>
@@ -230,6 +321,7 @@
             <span class="p">)</span>
         <span class="n">sample_empty_shapes</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="o">*</span><span class="n">shape_safe</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
         <span class="n">dtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">dtype_safe</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+
         <span class="k">if</span> <span class="n">collate_fn</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">collate_fn</span> <span class="o">=</span> <span class="n">default_collate</span>
 
@@ -243,6 +335,8 @@
             <span class="n">batch_sampler</span><span class="o">=</span><span class="n">batch_sampler</span><span class="p">,</span>
             <span class="n">collate_fn</span><span class="o">=</span><span class="n">wrap_collate_with_empty</span><span class="p">(</span>
                 <span class="n">collate_fn</span><span class="o">=</span><span class="n">collate_fn</span><span class="p">,</span>
+                <span class="n">batch_first</span><span class="o">=</span><span class="n">batch_first</span><span class="p">,</span>
+                <span class="n">rand_on_empty</span><span class="o">=</span><span class="n">rand_on_empty</span><span class="p">,</span>
                 <span class="n">sample_empty_shapes</span><span class="o">=</span><span class="n">sample_empty_shapes</span><span class="p">,</span>
                 <span class="n">dtypes</span><span class="o">=</span><span class="n">dtypes</span><span class="p">,</span>
             <span class="p">),</span>
@@ -254,7 +348,13 @@
 <a class="viewcode-back" href="../../data_loader.html#opacus.data_loader.DPDataLoader.from_data_loader">[docs]</a>
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_data_loader</span><span class="p">(</span>
-        <span class="bp">cls</span><span class="p">,</span> <span class="n">data_loader</span><span class="p">:</span> <span class="n">DataLoader</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">distributed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="kc">None</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">data_loader</span><span class="p">:</span> <span class="n">DataLoader</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">distributed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">batch_first</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">rand_on_empty</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Creates new ``DPDataLoader`` based on passed ``data_loader`` argument.</span>
@@ -264,6 +364,14 @@
 <span class="sd">            distributed: set ``True`` if you'll be using DPDataLoader in a DDP environment</span>
 <span class="sd">            generator: Random number generator used to sample elements. Defaults to</span>
 <span class="sd">                generator from the original data loader.</span>
+<span class="sd">            batch_first: Flag to indicate if the input tensor to the corresponding module</span>
+<span class="sd">                has the first dimension representing the batch. If set to True, dimensions on</span>
+<span class="sd">                input tensor are expected be ``[batch_size, ...]``, otherwise</span>
+<span class="sd">                ``[K, batch_size, ...]``</span>
+<span class="sd">            rand_on_empty: set ``True`` to return a batch containing random numbers when encountering</span>
+<span class="sd">                empty batches rather than tensors with zero-length batch dimensions</span>
+
+
 
 <span class="sd">        Returns:</span>
 <span class="sd">            New DPDataLoader instance, with all attributes and parameters inherited</span>
@@ -293,6 +401,8 @@
             <span class="n">prefetch_factor</span><span class="o">=</span><span class="n">data_loader</span><span class="o">.</span><span class="n">prefetch_factor</span><span class="p">,</span>
             <span class="n">persistent_workers</span><span class="o">=</span><span class="n">data_loader</span><span class="o">.</span><span class="n">persistent_workers</span><span class="p">,</span>
             <span class="n">distributed</span><span class="o">=</span><span class="n">distributed</span><span class="p">,</span>
+            <span class="n">batch_first</span><span class="o">=</span><span class="n">batch_first</span><span class="p">,</span>
+            <span class="n">rand_on_empty</span><span class="o">=</span><span class="n">rand_on_empty</span><span class="p">,</span>
         <span class="p">)</span></div>
 </div>
 
