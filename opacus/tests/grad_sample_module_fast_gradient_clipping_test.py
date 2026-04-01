@@ -514,13 +514,13 @@ class GradSampleModuleFastGradientClippingEmbeddingLayerTest(unittest.TestCase):
             else:
                 raise
 
-            self.assertTrue(
-                success,
-                f"get_clipping_coef should handle multi-device parameters for {cls}",
-            )
-            self.assertEqual(clipping_coef.shape[0], batch_size)
-            # Verify clipping coefficients are correct
-            self.assertTrue(torch.all(clipping_coef <= 1.0))
+        self.assertTrue(
+            success,
+            "get_clipping_coef should handle multi-device parameters",
+        )
+        self.assertEqual(clipping_coef.shape[0], batch_size)
+        # Verify clipping coefficients are correct
+        self.assertTrue(torch.all(clipping_coef <= 1.0))
 
 
 class DPTensorArithmeticTest(unittest.TestCase):
