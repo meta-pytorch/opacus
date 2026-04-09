@@ -409,6 +409,18 @@ class PrivacyEngine:
         )
         if poisson_sampling:
             module.forbid_grad_accumulation()
+            
+        if hasattr(data_loader.dataset, '__len__'):
+            true_dataset_size = len(data_loader.dataset)
+            print(f"DEBUG: true_dataset_size = {true_dataset_size}")
+        else:
+            raise ValueError(
+                "Dataset must have __len__ for privacy accounting. "
+                "IterableDataset is not supported."
+    )
+        original_batch_size = data_loader.batch_size
+        if original_batch_size is None:
+            raise ValueError("DataLoader must have a batch_size")
 
         data_loader = self._prepare_data_loader(
             data_loader,
@@ -418,8 +430,8 @@ class PrivacyEngine:
             rand_on_empty=rand_on_empty,
         )
 
-        sample_rate = 1 / len(data_loader)
-        expected_batch_size = int(len(data_loader.dataset) * sample_rate)
+        sample_rate = original_batch_size / true_dataset_size
+        expected_batch_size = int(true_dataset_size * sample_rate)
 
         # expected_batch_size is the *per worker* batch size
         if distributed:
