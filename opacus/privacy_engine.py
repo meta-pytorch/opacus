@@ -409,10 +409,9 @@ class PrivacyEngine:
         )
         if poisson_sampling:
             module.forbid_grad_accumulation()
-            
+
         if hasattr(data_loader.dataset, '__len__'):
-            true_dataset_size = len(data_loader.dataset)
-            print(f"DEBUG: true_dataset_size = {true_dataset_size}")
+            true_dataset_size = len(data_loader.dataset)S
         else:
             raise ValueError(
                 "Dataset must have __len__ for privacy accounting. "
