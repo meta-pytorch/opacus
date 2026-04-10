@@ -27,6 +27,99 @@
 <section id="gradsamplemodulefastgradientclipping">
 <h1>GradSampleModuleFastGradientClipping<a class="headerlink" href="#gradsamplemodulefastgradientclipping" title="Link to this heading">¶</a></h1>
 <dl class="py class" id="module-opacus.grad_sample.grad_sample_module_fast_gradient_clipping">
+<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">opacus.grad_sample.grad_sample_module_fast_gradient_clipping.</span></span><span class="sig-name descname"><span class="pre">GradSampleHooksFastGradientClipping</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">m</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_first</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_reduction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_functorch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grad_norm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_ghost_clipping</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module_fast_gradient_clipping.html#GradSampleHooksFastGradientClipping"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping" title="Link to this definition">¶</a></dt>
+<dd><p>Hooks-based implementation for Fast Gradient and Ghost Clipping</p>
+<p>Computes norms of gradients without gradient instantiation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>m</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module to be attached to</p></li>
+<li><p><strong>batch_first</strong> – Flag to indicate if the input tensor to the corresponding module
+has the first dimension representing the batch. If set to True, dimensions on
+input tensor are expected be <code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">...]</span></code>, otherwise
+<code class="docutils literal notranslate"><span class="pre">[K,</span> <span class="pre">batch_size,</span> <span class="pre">...]</span></code></p></li>
+<li><p><strong>loss_reduction</strong> – Indicates if the loss reduction (for aggregating the gradients)
+is a sum or a mean operation. Can take values “sum” or “mean”</p></li>
+<li><p><strong>max_grad_norm</strong> – The value at which gradients are to be clipped.</p></li>
+<li><p><strong>strict</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – If set to True, the input module will be validated to make sure that
+it does not have buffers in all its submodules.</p></li>
+<li><p><strong>force_functorch</strong> – If set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, will use functorch to compute
+all per sample gradients. Otherwise, functorch will be used only
+for layers without registered grad sampler methods.</p></li>
+<li><p><strong>use_ghost_clipping</strong> – If set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, Ghost Clipping
+will be used for clipping gradients of supported layers. If <code class="docutils literal notranslate"><span class="pre">False</span></code>, Fast
+Gradient Clipping will be used for all layers.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#NotImplementedError" title="(in Python v3.14)"><strong>NotImplementedError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">strict</span></code> is set to <code class="docutils literal notranslate"><span class="pre">True</span></code> and module <code class="docutils literal notranslate"><span class="pre">m</span></code> (or any of its
+    submodules) includes a buffer.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.capture_backprops_hook">
+<span class="sig-name descname"><span class="pre">capture_backprops_hook</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_forward_input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forward_output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_reduction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_first</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module_fast_gradient_clipping.html#GradSampleHooksFastGradientClipping.capture_backprops_hook"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.capture_backprops_hook" title="Link to this definition">¶</a></dt>
+<dd><p>Computes norms of per sample gradient given the current backprops and activations
+stored by the associated forward hook. Computed per sample gradient norms are
+stored in <code class="docutils literal notranslate"><span class="pre">norm_sample</span></code> field in each parameter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>module</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module,</p></li>
+<li><p><strong>_forward_input</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – torch.Tensor,</p></li>
+<li><p><strong>forward_output</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – torch.Tensor,</p></li>
+<li><p><strong>loss_reduction</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – str,</p></li>
+<li><p><strong>batch_first</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – bool,</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.get_clipping_coef">
+<span class="sig-name descname"><span class="pre">get_clipping_coef</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module_fast_gradient_clipping.html#GradSampleHooksFastGradientClipping.get_clipping_coef"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.get_clipping_coef" title="Link to this definition">¶</a></dt>
+<dd><p>Get per-example gradient scaling factor for clipping.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.get_norm_sample">
+<span class="sig-name descname"><span class="pre">get_norm_sample</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module_fast_gradient_clipping.html#GradSampleHooksFastGradientClipping.get_norm_sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.get_norm_sample" title="Link to this definition">¶</a></dt>
+<dd><p>Get per-example gradient norms.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.log_module_gradient_sample_mode">
+<span class="sig-name descname"><span class="pre">log_module_gradient_sample_mode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_functorch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_ghost_clipping</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module_fast_gradient_clipping.html#GradSampleHooksFastGradientClipping.log_module_gradient_sample_mode"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.log_module_gradient_sample_mode" title="Link to this definition">¶</a></dt>
+<dd><p>Add logs to track gradient sample mode for each part of the module, including 1) Ghost Clipping, 2) Fast Gradient Clipping (hook mode), and 3) Fast Gradient Clipping (functorch mode).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>module</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module to be checked</p></li>
+<li><p><strong>force_functorch</strong> – If set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, will use functorch to compute
+all per sample gradients. Otherwise, functorch will be used only
+for layers without registered grad sampler methods.</p></li>
+<li><p><strong>use_ghost_clipping</strong> – If set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, Ghost Clipping
+will be used for clipping gradients of supported layers. If <code class="docutils literal notranslate"><span class="pre">False</span></code>, Fast
+Gradient Clipping will be used for all layers.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.per_sample_gradient_norms">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">per_sample_gradient_norms</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><span class="pre">Tensor</span></a></span><a class="headerlink" href="#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.per_sample_gradient_norms" title="Link to this definition">¶</a></dt>
+<dd><p>Returns per sample gradient norms. Note that these are not privatized and should only be used for debugging purposes or in non-private settings</p>
+</dd></dl>
+</dd></dl>
+<dl class="py class">
 <dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">opacus.grad_sample.grad_sample_module_fast_gradient_clipping.</span></span><span class="sig-name descname"><span class="pre">GradSampleModuleFastGradientClipping</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">m</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_first</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_reduction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_functorch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grad_norm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_ghost_clipping</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module_fast_gradient_clipping.html#GradSampleModuleFastGradientClipping"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping" title="Link to this definition">¶</a></dt>
 <dd><p>Hooks-based implementation of GradSampleModule with Fast Gradient and Ghost Clipping</p>
@@ -57,67 +150,6 @@ Gradient Clipping will be used for all layers.</p></li>
     submodules) includes a buffer.</p>
 </dd>
 </dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.capture_backprops_hook">
-<span class="sig-name descname"><span class="pre">capture_backprops_hook</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_forward_input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forward_output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_reduction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_first</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module_fast_gradient_clipping.html#GradSampleModuleFastGradientClipping.capture_backprops_hook"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.capture_backprops_hook" title="Link to this definition">¶</a></dt>
-<dd><p>Computes norms of per sample gradient given the current backprops and activations
-stored by the associated forward hook. Computed per sample gradient norms are
-stored in <code class="docutils literal notranslate"><span class="pre">norm_sample</span></code> field in each parameter.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>module</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module,</p></li>
-<li><p><strong>_forward_input</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – torch.Tensor,</p></li>
-<li><p><strong>forward_output</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – torch.Tensor,</p></li>
-<li><p><strong>loss_reduction</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – str,</p></li>
-<li><p><strong>batch_first</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – bool,</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.get_clipping_coef">
-<span class="sig-name descname"><span class="pre">get_clipping_coef</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module_fast_gradient_clipping.html#GradSampleModuleFastGradientClipping.get_clipping_coef"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.get_clipping_coef" title="Link to this definition">¶</a></dt>
-<dd><p>Get per-example gradient scaling factor for clipping.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span></p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.get_norm_sample">
-<span class="sig-name descname"><span class="pre">get_norm_sample</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module_fast_gradient_clipping.html#GradSampleModuleFastGradientClipping.get_norm_sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.get_norm_sample" title="Link to this definition">¶</a></dt>
-<dd><p>Get per-example gradient norms.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span></p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.log_module_gradient_sample_mode">
-<span class="sig-name descname"><span class="pre">log_module_gradient_sample_mode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_functorch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_ghost_clipping</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module_fast_gradient_clipping.html#GradSampleModuleFastGradientClipping.log_module_gradient_sample_mode"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.log_module_gradient_sample_mode" title="Link to this definition">¶</a></dt>
-<dd><p>Add logs to track gradient sample mode for each part of the module, including 1) Ghost Clipping, 2) Fast Gradient Clipping (hook mode), and 3) Fast Gradient Clipping (functorch mode).</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>module</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module to be checked</p></li>
-<li><p><strong>force_functorch</strong> – If set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, will use functorch to compute
-all per sample gradients. Otherwise, functorch will be used only
-for layers without registered grad sampler methods.</p></li>
-<li><p><strong>use_ghost_clipping</strong> – If set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, Ghost Clipping
-will be used for clipping gradients of supported layers. If <code class="docutils literal notranslate"><span class="pre">False</span></code>, Fast
-Gradient Clipping will be used for all layers.</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py property">
-<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.per_sample_gradient_norms">
-<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">per_sample_gradient_norms</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><span class="pre">Tensor</span></a></span><a class="headerlink" href="#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.per_sample_gradient_norms" title="Link to this definition">¶</a></dt>
-<dd><p>Returns per sample gradient norms. Note that these are not privatized and should only be used for debugging purposes or in non-private settings</p>
-</dd></dl>
 </dd></dl>
 <dl class="py function">
 <dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module_fast_gradient_clipping.create_norm_sample">
@@ -157,6 +189,7 @@ shape as <code class="docutils literal notranslate"><span class="pre">param</spa
 <li class="toctree-l1"><a class="reference internal" href="privacy_engine.html">Privacy Engine</a></li>
 <li class="toctree-l1"><a class="reference internal" href="grad_sample_module.html">GradSampleModule</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">GradSampleModuleFastGradientClipping</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping"><code class="docutils literal notranslate"><span class="pre">GradSampleHooksFastGradientClipping</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping"><code class="docutils literal notranslate"><span class="pre">GradSampleModuleFastGradientClipping</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.create_norm_sample"><code class="docutils literal notranslate"><span class="pre">create_norm_sample()</span></code></a></li>
 </ul>

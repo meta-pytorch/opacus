@@ -27,6 +27,209 @@
 <section id="module-opacus.grad_sample.grad_sample_module">
 <span id="gradsamplemodule"></span><h1>GradSampleModule<a class="headerlink" href="#module-opacus.grad_sample.grad_sample_module" title="Link to this heading">¶</a></h1>
 <dl class="py class">
+<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleHooks">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">opacus.grad_sample.grad_sample_module.</span></span><span class="sig-name descname"><span class="pre">GradSampleHooks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">m</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_first</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_reduction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_functorch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleHooks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleHooks" title="Link to this definition">¶</a></dt>
+<dd><p>Hooks-based implementation for computing per-sample gradients.</p>
+<p>Computes per-sample gradients using custom-written methods for each layer.
+Attaches to the model without wrapping it in an nn.Module.
+See README.md for more details</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>m</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module to be attached to</p></li>
+<li><p><strong>batch_first</strong> – Flag to indicate if the input tensor to the corresponding module
+has the first dimension representing the batch. If set to True, dimensions on
+input tensor are expected be <code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">...]</span></code>, otherwise
+<code class="docutils literal notranslate"><span class="pre">[K,</span> <span class="pre">batch_size,</span> <span class="pre">...]</span></code></p></li>
+<li><p><strong>loss_reduction</strong> – Indicates if the loss reduction (for aggregating the gradients)
+is a sum or a mean operation. Can take values “sum” or “mean”</p></li>
+<li><p><strong>strict</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – If set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, the input module will be validated to make sure that none of its submodules includes buffers,
+which is not currently supported by Opacus.
+If set to <code class="docutils literal notranslate"><span class="pre">False</span></code>, per sample gradients will
+be computed on “best effort” basis - they will be available where
+possible and set to None otherwise. This is not recommended, because
+some unsupported modules (e.g. BatchNorm) affect other parameters and
+invalidate the concept of per sample gradients for the entire model.</p></li>
+<li><p><strong>force_functorch</strong> – If set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, will use functorch to compute
+all per sample gradients. Otherwise, functorch will be used only
+for layers without registered grad sampler methods.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#NotImplementedError" title="(in Python v3.14)"><strong>NotImplementedError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">strict</span></code> is set to <code class="docutils literal notranslate"><span class="pre">True</span></code> and module <code class="docutils literal notranslate"><span class="pre">m</span></code> (or any of its
+    submodules) includes a buffer.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleHooks.add_hooks">
+<span class="sig-name descname"><span class="pre">add_hooks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_reduction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_first</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_functorch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleHooks.add_hooks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleHooks.add_hooks" title="Link to this definition">¶</a></dt>
+<dd><p>Adds hooks to model to save activations and backprop values.
+The hooks will
+1. save activations into param.activations during forward pass
+2. compute per-sample gradients in params.grad_sample during backward pass.
+Call <code class="docutils literal notranslate"><span class="pre">remove_hooks(model)</span></code> to disable this.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> – the model to which hooks are added</p></li>
+<li><p><strong>batch_first</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – Flag to indicate if the input tensor to the corresponding module
+has the first dimension representing the batch. If set to True, dimensions on
+input tensor are expected be <code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">...]</span></code>, otherwise
+<code class="docutils literal notranslate"><span class="pre">[K,</span> <span class="pre">batch_size,</span> <span class="pre">...]</span></code></p></li>
+<li><p><strong>loss_reduction</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – Indicates if the loss reduction (for aggregating the gradients)
+is a sum or a mean operation. Can take values “sum” or “mean”</p></li>
+<li><p><strong>force_functorch</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – If set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, will use functorch to compute all per sample gradients.
+Otherwise, functorch will be used only for layers without registered grad sampler methods.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleHooks.allow_grad_accumulation">
+<span class="sig-name descname"><span class="pre">allow_grad_accumulation</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleHooks.allow_grad_accumulation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleHooks.allow_grad_accumulation" title="Link to this definition">¶</a></dt>
+<dd><p>Unsets a flag to detect gradient accumulation (multiple forward/backward passes
+without an optimizer step or clearing out gradients).</p>
+<p>When set, GradSampleModule will throw a ValueError on the second backward pass.
+:return:</p>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleHooks.capture_backprops_hook">
+<span class="sig-name descname"><span class="pre">capture_backprops_hook</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_forward_input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forward_output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_reduction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_first</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleHooks.capture_backprops_hook"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleHooks.capture_backprops_hook" title="Link to this definition">¶</a></dt>
+<dd><p>Computes per sample gradients given the current backprops and activations
+stored by the associated forward hook. Computed per sample gradients are
+stored in <code class="docutils literal notranslate"><span class="pre">grad_sample</span></code> field in each parameter.</p>
+<p>For non-recurrent layers the process is straightforward: for each
+<code class="docutils literal notranslate"><span class="pre">loss.backward()</span></code> call this hook will be called exactly one. For recurrent
+layers, however, this is more complicated and the hook will be called multiple
+times, while still processing the same batch of data.</p>
+<p>For this reason we first accumulate the gradients from <em>the same batch</em> in
+<code class="docutils literal notranslate"><span class="pre">p._current_grad_sample</span></code> and then, when we detect the end of a full backward
+pass - we store accumulated result on <code class="docutils literal notranslate"><span class="pre">p.grad_sample</span></code>.</p>
+<p>From there, <code class="docutils literal notranslate"><span class="pre">p.grad_sample</span></code> could be either a Tensor or a list of Tensors,
+if accumulated over multiple batches</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>module</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module,</p></li>
+<li><p><strong>_forward_input</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – torch.Tensor,</p></li>
+<li><p><strong>forward_output</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – torch.Tensor,</p></li>
+<li><p><strong>loss_reduction</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – str,</p></li>
+<li><p><strong>batch_first</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – bool,</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleHooks.disable_hooks">
+<span class="sig-name descname"><span class="pre">disable_hooks</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleHooks.disable_hooks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleHooks.disable_hooks" title="Link to this definition">¶</a></dt>
+<dd><p>Globally disable all hooks installed by this library.
+Why is this needed? As per <a class="reference external" href="https://github.com/pytorch/pytorch/issues/25723">https://github.com/pytorch/pytorch/issues/25723</a>, there is
+a bug in Autograd that makes removing hooks do nothing if the graph was already
+constructed. For this reason, we have this method to at least turn them off.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleHooks.enable_hooks">
+<span class="sig-name descname"><span class="pre">enable_hooks</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleHooks.enable_hooks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleHooks.enable_hooks" title="Link to this definition">¶</a></dt>
+<dd><p>The opposite of <code class="docutils literal notranslate"><span class="pre">disable_hooks()</span></code>. Hooks are always enabled unless you explicitly
+disable them so you don’t need to call this unless you want to re-enable them.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleHooks.forbid_grad_accumulation">
+<span class="sig-name descname"><span class="pre">forbid_grad_accumulation</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleHooks.forbid_grad_accumulation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleHooks.forbid_grad_accumulation" title="Link to this definition">¶</a></dt>
+<dd><p>Sets a flag to detect gradient accumulation (multiple forward/backward passes
+without an optimizer step or clearing out gradients).</p>
+<p>When set, GradSampleModule will throw a ValueError on the second backward pass.
+:return:</p>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleHooks.is_supported">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">is_supported</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleHooks.is_supported"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleHooks.is_supported" title="Link to this definition">¶</a></dt>
+<dd><p>Checks if this individual model is supported (i.e. has a registered
+grad sampler function)</p>
+<p class="rubric">Notes</p>
+<p>Note that this method does not check submodules</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>module</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module to be checked</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">True</span></code> if grad sampler is found, <code class="docutils literal notranslate"><span class="pre">False</span></code> otherwise</p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleHooks.rearrange_grad_samples">
+<span class="sig-name descname"><span class="pre">rearrange_grad_samples</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">backprops</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_reduction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_first</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleHooks.rearrange_grad_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleHooks.rearrange_grad_samples" title="Link to this definition">¶</a></dt>
+<dd><p>Rearrange activations and grad_samples based on loss reduction and batch dim</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>module</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – the module for which per-sample gradients are computed</p></li>
+<li><p><strong>backprops</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – the captured backprops</p></li>
+<li><p><strong>loss_reduction</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – either “mean” or “sum” depending on whether backpropped
+loss was averaged or summed over batch</p></li>
+<li><p><strong>batch_first</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – True is batch dimension is first</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Tuple</span></code></a>[<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a>, <a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleHooks.remove_hooks">
+<span class="sig-name descname"><span class="pre">remove_hooks</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleHooks.remove_hooks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleHooks.remove_hooks" title="Link to this definition">¶</a></dt>
+<dd><p>Removes hooks added by <code class="docutils literal notranslate"><span class="pre">add_hooks()</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleHooks.validate">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">validate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleHooks.validate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleHooks.validate" title="Link to this definition">¶</a></dt>
+<dd><p>Check if per sample gradients can be fully computed for a given model</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>module</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module to be checked</p></li>
+<li><p><strong>raise_if_error</strong> – Behaviour in case of a negative check result. Will</p></li>
+<li><p><strong>False</strong> (<em>return the list</em><em> of </em><em>exceptions if set to</em>)</p></li>
+<li><p><strong>otherwise</strong> (<em>and throw</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/exceptions.html#NotImplementedError" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">NotImplementedError</span></code></a>]</span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Empty list of validation is successful.
+List of validation errors  if <code class="docutils literal notranslate"><span class="pre">raise_if_error=False</span></code> and
+unsupported modules are found</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#NotImplementedError" title="(in Python v3.14)"><strong>NotImplementedError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">raise_if_error=True</span></code> and unsupported modules are found</p>
+</dd>
+</dl>
+</dd></dl>
+</dd></dl>
+<dl class="py class">
 <dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleModule">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">opacus.grad_sample.grad_sample_module.</span></span><span class="sig-name descname"><span class="pre">GradSampleModule</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">m</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_first</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_reduction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_functorch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleModule"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleModule" title="Link to this definition">¶</a></dt>
 <dd><p>Hooks-based implementation of AbstractGradSampleModule</p>
@@ -60,100 +263,6 @@ for layers without registered grad sampler methods.</p></li>
 </dd>
 </dl>
 <dl class="py method">
-<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleModule.add_hooks">
-<span class="sig-name descname"><span class="pre">add_hooks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_reduction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_first</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_functorch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleModule.add_hooks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleModule.add_hooks" title="Link to this definition">¶</a></dt>
-<dd><p>Adds hooks to model to save activations and backprop values.
-The hooks will
-1. save activations into param.activations during forward pass
-2. compute per-sample gradients in params.grad_sample during backward pass.
-Call <code class="docutils literal notranslate"><span class="pre">remove_hooks(model)</span></code> to disable this.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>model</strong> – the model to which hooks are added</p></li>
-<li><p><strong>batch_first</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – Flag to indicate if the input tensor to the corresponding module
-has the first dimension representing the batch. If set to True, dimensions on
-input tensor are expected be <code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">...]</span></code>, otherwise
-<code class="docutils literal notranslate"><span class="pre">[K,</span> <span class="pre">batch_size,</span> <span class="pre">...]</span></code></p></li>
-<li><p><strong>loss_reduction</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – Indicates if the loss reduction (for aggregating the gradients)
-is a sum or a mean operation. Can take values “sum” or “mean”</p></li>
-<li><p><strong>force_functorch</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – If set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, will use functorch to compute all per sample gradients.
-Otherwise, functorch will be used only for layers without registered grad sampler methods.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleModule.allow_grad_accumulation">
-<span class="sig-name descname"><span class="pre">allow_grad_accumulation</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleModule.allow_grad_accumulation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleModule.allow_grad_accumulation" title="Link to this definition">¶</a></dt>
-<dd><p>Unsets a flag to detect gradient accumulation (multiple forward/backward passes
-without an optimizer step or clearing out gradients).</p>
-<p>When set, GradSampleModule will throw a ValueError on the second backward pass.
-:return:</p>
-</dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleModule.capture_backprops_hook">
-<span class="sig-name descname"><span class="pre">capture_backprops_hook</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_forward_input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forward_output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_reduction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_first</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleModule.capture_backprops_hook"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleModule.capture_backprops_hook" title="Link to this definition">¶</a></dt>
-<dd><p>Computes per sample gradients given the current backprops and activations
-stored by the associated forward hook. Computed per sample gradients are
-stored in <code class="docutils literal notranslate"><span class="pre">grad_sample</span></code> field in each parameter.</p>
-<p>For non-recurrent layers the process is straightforward: for each
-<code class="docutils literal notranslate"><span class="pre">loss.backward()</span></code> call this hook will be called exactly one. For recurrent
-layers, however, this is more complicated and the hook will be called multiple
-times, while still processing the same batch of data.</p>
-<p>For this reason we first accumulate the gradients from <em>the same batch</em> in
-<code class="docutils literal notranslate"><span class="pre">p._current_grad_sample</span></code> and then, when we detect the end of a full backward
-pass - we store accumulated result on <code class="docutils literal notranslate"><span class="pre">p.grad_sample</span></code>.</p>
-<p>From there, <code class="docutils literal notranslate"><span class="pre">p.grad_sample</span></code> could be either a Tensor or a list of Tensors,
-if accumulated over multiple batches</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>module</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module,</p></li>
-<li><p><strong>_forward_input</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – torch.Tensor,</p></li>
-<li><p><strong>forward_output</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – torch.Tensor,</p></li>
-<li><p><strong>loss_reduction</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – str,</p></li>
-<li><p><strong>batch_first</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – bool,</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleModule.disable_hooks">
-<span class="sig-name descname"><span class="pre">disable_hooks</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleModule.disable_hooks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleModule.disable_hooks" title="Link to this definition">¶</a></dt>
-<dd><p>Globally disable all hooks installed by this library.
-Why is this needed? As per <a class="reference external" href="https://github.com/pytorch/pytorch/issues/25723">https://github.com/pytorch/pytorch/issues/25723</a>, there is
-a bug in Autograd that makes removing hooks do nothing if the graph was already
-constructed. For this reason, we have this method to at least turn them off.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleModule.enable_hooks">
-<span class="sig-name descname"><span class="pre">enable_hooks</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleModule.enable_hooks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleModule.enable_hooks" title="Link to this definition">¶</a></dt>
-<dd><p>The opposite of <code class="docutils literal notranslate"><span class="pre">disable_hooks()</span></code>. Hooks are always enabled unless you explicitly
-disable them so you don’t need to call this unless you want to re-enable them.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleModule.forbid_grad_accumulation">
-<span class="sig-name descname"><span class="pre">forbid_grad_accumulation</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleModule.forbid_grad_accumulation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleModule.forbid_grad_accumulation" title="Link to this definition">¶</a></dt>
-<dd><p>Sets a flag to detect gradient accumulation (multiple forward/backward passes
-without an optimizer step or clearing out gradients).</p>
-<p>When set, GradSampleModule will throw a ValueError on the second backward pass.
-:return:</p>
-</dd></dl>
-<dl class="py method">
 <dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleModule.forward">
 <span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleModule.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleModule.forward" title="Link to this definition">¶</a></dt>
 <dd><p>Define the computation performed at every call.</p>
@@ -165,80 +274,6 @@ this function, one should call the <code class="xref py py-class docutils litera
 instead of this since the former takes care of running the
 registered hooks while the latter silently ignores them.</p>
 </div>
-</dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleModule.is_supported">
-<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">is_supported</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleModule.is_supported"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleModule.is_supported" title="Link to this definition">¶</a></dt>
-<dd><p>Checks if this individual model is supported (i.e. has a registered
-grad sampler function)</p>
-<p class="rubric">Notes</p>
-<p>Note that this method does not check submodules</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>module</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module to be checked</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span></p>
-</dd>
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">True</span></code> if grad sampler is found, <code class="docutils literal notranslate"><span class="pre">False</span></code> otherwise</p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleModule.rearrange_grad_samples">
-<span class="sig-name descname"><span class="pre">rearrange_grad_samples</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">backprops</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_reduction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_first</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleModule.rearrange_grad_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleModule.rearrange_grad_samples" title="Link to this definition">¶</a></dt>
-<dd><p>Rearrange activations and grad_samples based on loss reduction and batch dim</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>module</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – the module for which per-sample gradients are computed</p></li>
-<li><p><strong>backprops</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a></span>) – the captured backprops</p></li>
-<li><p><strong>loss_reduction</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – either “mean” or “sum” depending on whether backpropped
-loss was averaged or summed over batch</p></li>
-<li><p><strong>batch_first</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – True is batch dimension is first</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Tuple</span></code></a>[<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a>, <a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></a>]</span></p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleModule.remove_hooks">
-<span class="sig-name descname"><span class="pre">remove_hooks</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleModule.remove_hooks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleModule.remove_hooks" title="Link to this definition">¶</a></dt>
-<dd><p>Removes hooks added by <code class="docutils literal notranslate"><span class="pre">add_hooks()</span></code></p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
-</dd>
-</dl>
-</dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="opacus.grad_sample.grad_sample_module.GradSampleModule.validate">
-<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">validate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/grad_sample/grad_sample_module.html#GradSampleModule.validate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.grad_sample.grad_sample_module.GradSampleModule.validate" title="Link to this definition">¶</a></dt>
-<dd><p>Check if per sample gradients can be fully computed for a given model</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>module</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.11)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – nn.Module to be checked</p></li>
-<li><p><strong>raise_if_error</strong> – Behaviour in case of a negative check result. Will</p></li>
-<li><p><strong>False</strong> (<em>return the list</em><em> of </em><em>exceptions if set to</em>)</p></li>
-<li><p><strong>otherwise</strong> (<em>and throw</em>)</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/exceptions.html#NotImplementedError" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">NotImplementedError</span></code></a>]</span></p>
-</dd>
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Empty list of validation is successful.
-List of validation errors  if <code class="docutils literal notranslate"><span class="pre">raise_if_error=False</span></code> and
-unsupported modules are found</p>
-</dd>
-<dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#NotImplementedError" title="(in Python v3.14)"><strong>NotImplementedError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">raise_if_error=True</span></code> and unsupported modules are found</p>
-</dd>
-</dl>
 </dd></dl>
 </dd></dl>
 <dl class="py function">
@@ -280,6 +315,7 @@ shape as <code class="docutils literal notranslate"><span class="pre">param</spa
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="privacy_engine.html">Privacy Engine</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">GradSampleModule</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#opacus.grad_sample.grad_sample_module.GradSampleHooks"><code class="docutils literal notranslate"><span class="pre">GradSampleHooks</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#opacus.grad_sample.grad_sample_module.GradSampleModule"><code class="docutils literal notranslate"><span class="pre">GradSampleModule</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#opacus.grad_sample.grad_sample_module.create_or_accumulate_grad_sample"><code class="docutils literal notranslate"><span class="pre">create_or_accumulate_grad_sample()</span></code></a></li>
 </ul>

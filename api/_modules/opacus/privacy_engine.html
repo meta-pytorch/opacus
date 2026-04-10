@@ -51,9 +51,10 @@
 <span class="kn">from</span> <span class="nn">opacus.distributed</span> <span class="kn">import</span> <span class="n">DifferentiallyPrivateDistributedDataParallel</span> <span class="k">as</span> <span class="n">DPDDP</span>
 <span class="kn">from</span> <span class="nn">opacus.grad_sample</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">AbstractGradSampleModule</span><span class="p">,</span>
+    <span class="n">GradSampleHooks</span><span class="p">,</span>
     <span class="n">GradSampleModule</span><span class="p">,</span>
     <span class="n">get_gsm_class</span><span class="p">,</span>
-    <span class="n">wrap_model</span><span class="p">,</span>
+    <span class="n">prepare_module</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">opacus.optimizers</span> <span class="kn">import</span> <span class="n">DPOptimizer</span><span class="p">,</span> <span class="n">get_optimizer_class</span>
 <span class="kn">from</span> <span class="nn">opacus.schedulers</span> <span class="kn">import</span> <span class="n">_GradClipScheduler</span><span class="p">,</span> <span class="n">_NoiseScheduler</span>
@@ -211,13 +212,14 @@
         <span class="n">max_grad_norm</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
         <span class="n">loss_reduction</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"mean"</span><span class="p">,</span>
         <span class="n">grad_sample_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"hooks"</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AbstractGradSampleModule</span><span class="p">:</span>
+        <span class="n">wrap_model</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">AbstractGradSampleModule</span><span class="p">,</span> <span class="n">GradSampleHooks</span><span class="p">]:</span>
         <span class="c1"># Ideally, validation should have been taken care of by calling</span>
         <span class="c1"># `get_compatible_module()`</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">module</span><span class="o">=</span><span class="n">module</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data_loader</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 
         <span class="c1"># wrap</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">AbstractGradSampleModule</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">wrap_model</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">AbstractGradSampleModule</span><span class="p">):</span>
             <span class="k">if</span> <span class="p">(</span>
                 <span class="n">module</span><span class="o">.</span><span class="n">batch_first</span> <span class="o">!=</span> <span class="n">batch_first</span>
                 <span class="ow">or</span> <span class="n">module</span><span class="o">.</span><span class="n">loss_reduction</span> <span class="o">!=</span> <span class="n">loss_reduction</span>
@@ -233,19 +235,21 @@
             <span class="k">return</span> <span class="n">module</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">grad_sample_mode</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">"ghost"</span><span class="p">,</span> <span class="s2">"ghost_fsdp"</span><span class="p">]:</span>
-                <span class="k">return</span> <span class="n">wrap_model</span><span class="p">(</span>
+                <span class="k">return</span> <span class="n">prepare_module</span><span class="p">(</span>
                     <span class="n">module</span><span class="p">,</span>
                     <span class="n">grad_sample_mode</span><span class="o">=</span><span class="n">grad_sample_mode</span><span class="p">,</span>
                     <span class="n">batch_first</span><span class="o">=</span><span class="n">batch_first</span><span class="p">,</span>
                     <span class="n">loss_reduction</span><span class="o">=</span><span class="n">loss_reduction</span><span class="p">,</span>
                     <span class="n">max_grad_norm</span><span class="o">=</span><span class="n">max_grad_norm</span><span class="p">,</span>
+                    <span class="n">wrap_model</span><span class="o">=</span><span class="n">wrap_model</span><span class="p">,</span>
                 <span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">wrap_model</span><span class="p">(</span>
+                <span class="k">return</span> <span class="n">prepare_module</span><span class="p">(</span>
                     <span class="n">module</span><span class="p">,</span>
                     <span class="n">grad_sample_mode</span><span class="o">=</span><span class="n">grad_sample_mode</span><span class="p">,</span>
                     <span class="n">batch_first</span><span class="o">=</span><span class="n">batch_first</span><span class="p">,</span>
                     <span class="n">loss_reduction</span><span class="o">=</span><span class="n">loss_reduction</span><span class="p">,</span>
+                    <span class="n">wrap_model</span><span class="o">=</span><span class="n">wrap_model</span><span class="p">,</span>
                 <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_prepare_criterion</span><span class="p">(</span>
@@ -253,7 +257,7 @@
         <span class="o">*</span><span class="p">,</span>
         <span class="n">module</span><span class="p">:</span> <span class="n">GradSampleModule</span><span class="p">,</span>
         <span class="n">optimizer</span><span class="p">:</span> <span class="n">DPOptimizer</span><span class="p">,</span>
-        <span class="n">criterion</span><span class="o">=</span><span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">(),</span>
+        <span class="n">criterion</span><span class="p">,</span>
         <span class="n">loss_reduction</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"mean"</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DPLossFastGradientClipping</span><span class="p">:</span>
@@ -355,11 +359,19 @@
         <span class="n">clipping</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"flat"</span><span class="p">,</span>
         <span class="n">noise_generator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">grad_sample_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"hooks"</span><span class="p">,</span>
+        <span class="n">wrap_model</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">rand_on_empty</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span>
-        <span class="n">Tuple</span><span class="p">[</span><span class="n">GradSampleModule</span><span class="p">,</span> <span class="n">DPOptimizer</span><span class="p">,</span> <span class="n">DataLoader</span><span class="p">],</span>
-        <span class="n">Tuple</span><span class="p">[</span><span class="n">GradSampleModule</span><span class="p">,</span> <span class="n">DPOptimizer</span><span class="p">,</span> <span class="n">DPLossFastGradientClipping</span><span class="p">,</span> <span class="n">DataLoader</span><span class="p">],</span>
+        <span class="n">Tuple</span><span class="p">[</span>
+            <span class="n">Union</span><span class="p">[</span><span class="n">AbstractGradSampleModule</span><span class="p">,</span> <span class="n">GradSampleHooks</span><span class="p">],</span> <span class="n">DPOptimizer</span><span class="p">,</span> <span class="n">DataLoader</span>
+        <span class="p">],</span>
+        <span class="n">Tuple</span><span class="p">[</span>
+            <span class="n">Union</span><span class="p">[</span><span class="n">AbstractGradSampleModule</span><span class="p">,</span> <span class="n">GradSampleHooks</span><span class="p">],</span>
+            <span class="n">DPOptimizer</span><span class="p">,</span>
+            <span class="n">DPLossFastGradientClipping</span><span class="p">,</span>
+            <span class="n">DataLoader</span><span class="p">,</span>
+        <span class="p">],</span>
     <span class="p">]:</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Add privacy-related responsibilities to the main PyTorch training objects:</span>
@@ -413,10 +425,16 @@
 <span class="sd">                empty batches samples with Poisson sampling rather than tensors with zero-length batch dimensions</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Tuple of  (model, optimizer, data_loader) or (model, optimizer, criterion, data_loader).</span>
+<span class="sd">            Tuple of (hooks_or_module, optimizer, data_loader) or (hooks_or_module, optimizer, criterion, data_loader).</span>
 
-<span class="sd">            Model is a wrapper around the original model that also computes per sample</span>
-<span class="sd">                gradients</span>
+<span class="sd">            Returns a hooks object for gradient sampling and cleanup:</span>
+<span class="sd">            - If wrap_model=True: Returns GradSampleModule wrapper (use as your model)</span>
+<span class="sd">            - If wrap_model=False: Returns GradSampleHooks object (use your original model directly,</span>
+<span class="sd">              use returned hooks only for cleanup)</span>
+
+<span class="sd">            The hooks object provides .cleanup() method. In non-wrapping mode, the original model</span>
+<span class="sd">            passed to make_private() is unchanged - continue using it normally.</span>
+
 <span class="sd">            Optimizer is a wrapper around the original optimizer that also does</span>
 <span class="sd">             gradient clipping and noise addition to the gradients</span>
 <span class="sd">            Criterion is a wrapper around the original criterion that packages the two backward passes for fast gradient clipping.</span>
@@ -446,6 +464,7 @@
             <span class="n">max_grad_norm</span><span class="o">=</span><span class="n">max_grad_norm</span><span class="p">,</span>
             <span class="n">loss_reduction</span><span class="o">=</span><span class="n">loss_reduction</span><span class="p">,</span>
             <span class="n">grad_sample_mode</span><span class="o">=</span><span class="n">grad_sample_mode</span><span class="p">,</span>
+            <span class="n">wrap_model</span><span class="o">=</span><span class="n">wrap_model</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="n">poisson_sampling</span><span class="p">:</span>
             <span class="n">module</span><span class="o">.</span><span class="n">forbid_grad_accumulation</span><span class="p">()</span>
@@ -515,10 +534,18 @@
         <span class="n">clipping</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"flat"</span><span class="p">,</span>
         <span class="n">noise_generator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">grad_sample_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"hooks"</span><span class="p">,</span>
+        <span class="n">wrap_model</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span>
-        <span class="n">Tuple</span><span class="p">[</span><span class="n">GradSampleModule</span><span class="p">,</span> <span class="n">DPOptimizer</span><span class="p">,</span> <span class="n">DataLoader</span><span class="p">],</span>
-        <span class="n">Tuple</span><span class="p">[</span><span class="n">GradSampleModule</span><span class="p">,</span> <span class="n">DPOptimizer</span><span class="p">,</span> <span class="n">DPLossFastGradientClipping</span><span class="p">,</span> <span class="n">DataLoader</span><span class="p">],</span>
+        <span class="n">Tuple</span><span class="p">[</span>
+            <span class="n">Union</span><span class="p">[</span><span class="n">AbstractGradSampleModule</span><span class="p">,</span> <span class="n">GradSampleHooks</span><span class="p">],</span> <span class="n">DPOptimizer</span><span class="p">,</span> <span class="n">DataLoader</span>
+        <span class="p">],</span>
+        <span class="n">Tuple</span><span class="p">[</span>
+            <span class="n">Union</span><span class="p">[</span><span class="n">AbstractGradSampleModule</span><span class="p">,</span> <span class="n">GradSampleHooks</span><span class="p">],</span>
+            <span class="n">DPOptimizer</span><span class="p">,</span>
+            <span class="n">DPLossFastGradientClipping</span><span class="p">,</span>
+            <span class="n">DataLoader</span><span class="p">,</span>
+        <span class="p">],</span>
     <span class="p">]:</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Version of :meth:`~opacus.privacy_engine.PrivacyEngine.make_private`,</span>
@@ -561,12 +588,23 @@
 <span class="sd">                implementation class for the wrapped ``module``. See</span>
 <span class="sd">                :class:`~opacus.grad_sample.gsm_base.AbstractGradSampleModule` for more</span>
 <span class="sd">                details</span>
+<span class="sd">            wrap_model: If True (default), wraps module in GradSampleModule.</span>
+<span class="sd">                If False, uses non-wrapping mode - attaches hooks directly to the provided model</span>
+<span class="sd">                without wrapping. The original model remains unchanged and can be used normally.</span>
+<span class="sd">                Cleanup via returned hooks.cleanup() is required when done. Recommended for</span>
+<span class="sd">                HuggingFace Transformers and models with custom __getattr__ that don't work well with wrapping.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Tuple of (model, optimizer, data_loader) or (model, optimizer, criterion, data_loader).</span>
+<span class="sd">            Tuple of (hooks_or_module, optimizer, data_loader) or (hooks_or_module, optimizer, criterion, data_loader).</span>
 
-<span class="sd">            Model is a wrapper around the original model that also computes per sample</span>
-<span class="sd">                gradients</span>
+<span class="sd">            Returns a hooks object for gradient sampling and cleanup:</span>
+<span class="sd">            - If wrap_model=True: Returns GradSampleModule wrapper (use as your model)</span>
+<span class="sd">            - If wrap_model=False: Returns GradSampleHooks object (use your original model directly,</span>
+<span class="sd">              use returned hooks only for cleanup)</span>
+
+<span class="sd">            The hooks object provides .cleanup() method. In non-wrapping mode, the original model</span>
+<span class="sd">            passed to make_private() is unchanged - continue using it normally.</span>
+
 <span class="sd">            Optimizer is a wrapper around the original optimizer that also does</span>
 <span class="sd">                gradient clipping and noise addition to the gradients</span>
 <span class="sd">            Criterion is a wrapper around the original criterion that packages the two backward passes for fast gradient clipping.</span>
@@ -604,6 +642,7 @@
             <span class="n">grad_sample_mode</span><span class="o">=</span><span class="n">grad_sample_mode</span><span class="p">,</span>
             <span class="n">poisson_sampling</span><span class="o">=</span><span class="n">poisson_sampling</span><span class="p">,</span>
             <span class="n">clipping</span><span class="o">=</span><span class="n">clipping</span><span class="p">,</span>
+            <span class="n">wrap_model</span><span class="o">=</span><span class="n">wrap_model</span><span class="p">,</span>
             <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
         <span class="p">)</span></div>
 
@@ -629,7 +668,7 @@
         <span class="bp">self</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">,</span> <span class="n">BinaryIO</span><span class="p">,</span> <span class="n">IO</span><span class="p">[</span><span class="nb">bytes</span><span class="p">]],</span>
-        <span class="n">module</span><span class="p">:</span> <span class="n">GradSampleModule</span><span class="p">,</span>
+        <span class="n">module</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">GradSampleModule</span><span class="p">],</span>
         <span class="n">optimizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">DPOptimizer</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">noise_scheduler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">_NoiseScheduler</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">grad_clip_scheduler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">_GradClipScheduler</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -641,7 +680,7 @@
 <span class="sd">        Saves the state_dict of module, optimizer, and accountant at path.</span>
 <span class="sd">        Args:</span>
 <span class="sd">            path: Path to save the state dict objects.</span>
-<span class="sd">            module: GradSampleModule to save; wrapped module's state_dict is saved.</span>
+<span class="sd">            module: nn.Module or GradSampleModule to save; wrapped module's state_dict is saved.</span>
 <span class="sd">            optimizer: DPOptimizer to save; wrapped optimizer's state_dict is saved.</span>
 <span class="sd">            noise_scheduler: _NoiseScheduler whose state we should save.</span>
 <span class="sd">            grad_clip_scheduler: _GradClipScheduler whose state we should save.</span>
@@ -671,7 +710,7 @@
         <span class="bp">self</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">,</span> <span class="n">BinaryIO</span><span class="p">,</span> <span class="n">IO</span><span class="p">[</span><span class="nb">bytes</span><span class="p">]],</span>
-        <span class="n">module</span><span class="p">:</span> <span class="n">GradSampleModule</span><span class="p">,</span>
+        <span class="n">module</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">GradSampleModule</span><span class="p">],</span>
         <span class="n">optimizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">DPOptimizer</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">noise_scheduler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">_NoiseScheduler</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">grad_clip_scheduler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">_GradClipScheduler</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>

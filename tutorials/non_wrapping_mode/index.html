@@ -1,0 +1,643 @@
+<!DOCTYPE html><html lang=""><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Opacus · Train PyTorch models with Differential Privacy</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Train PyTorch models with Differential Privacy"/><meta property="og:title" content="Opacus · Train PyTorch models with Differential Privacy"/><meta property="og:type" content="website"/><meta property="og:url" content="https://opacus.ai/"/><meta property="og:description" content="Train PyTorch models with Differential Privacy"/><meta property="og:image" content="https://opacus.ai/img/opacus_logo.svg"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://opacus.ai/img/opacus_logo.svg"/><link rel="shortcut icon" href="/img/opacus_favicon.svg"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-117752657-3', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code_block_buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="/js/code_block_buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/mathjax.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS_HTML"></script><script src="https://unpkg.com/vanilla-back-to-top@7.1.14/dist/vanilla-back-to-top.min.js"></script><script>
+        document.addEventListener('DOMContentLoaded', function() {
+          addBackToTop(
+            {"zIndex":100}
+          )
+        });
+        </script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/"><img class="logo" src="/img/opacus_logo.svg" alt="Opacus"/></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/introduction" target="_self">Introduction</a></li><li class=""><a href="/docs/faq" target="_self">FAQ</a></li><li class=""><a href="/tutorials/" target="_self">Tutorials</a></li><li class=""><a href="/api/" target="_self">API Reference</a></li><li class=""><a href="https://github.com/pytorch/opacus" target="_self">GitHub</a></li><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span></span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Tutorials</h3><ul class=""><li class="navListItem"><a class="navItem" href="/tutorials/">Overview</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Using Opacus</h3><ul class=""><li class="navListItem"><a class="navItem" href="/tutorials/building_text_classifier">Building text classifier with Fast Gradient Clipping DP-SGD</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/tutorials/non_wrapping_mode">Training with Non-Wrapping Mode</a></li><li class="navListItem"><a class="navItem" href="/tutorials/building_image_classifier">Building image classifier with Differential Privacy</a></li><li class="navListItem"><a class="navItem" href="/tutorials/building_lstm_name_classifier">Training a differentially private LSTM model for name classification</a></li><li class="navListItem"><a class="navItem" href="/tutorials/intro_to_advanced_features">Deep dive into advanced features of Opacus</a></li><li class="navListItem"><a class="navItem" href="/tutorials/guide_to_module_validator">Guide to Module Validator and Fixer</a></li><li class="navListItem"><a class="navItem" href="/tutorials/guide_to_grad_sampler">Guide to grad samplers</a></li><li class="navListItem"><a class="navItem" href="/tutorials/ddp_tutorial">Training on multiple GPUs with DistributedDataParallel</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="tutorialBody">
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js">
+</script>
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js">
+</script>
+<div class="notebook">
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h1 id="Training-with-Non-Wrapping-Mode">Training with Non-Wrapping Mode<a class="anchor-link" href="#Training-with-Non-Wrapping-Mode">¶</a></h1><p>This tutorial demonstrates how to use Opacus's non-wrapping mode (<code>wrap_model=False</code>), which provides compatibility with transformer models and other complex architectures by avoiding model wrapping.</p>
+<h2 id="What-is-Non-Wrapping-Mode?">What is Non-Wrapping Mode?<a class="anchor-link" href="#What-is-Non-Wrapping-Mode?">¶</a></h2><p>By default, Opacus wraps the model in a <code>GradSampleModule</code> to compute per-sample gradients. This wrapper can cause issues:</p>
+<ul>
+<li>Type checking: <code>isinstance(model, MyModel)</code> returns <code>False</code> after wrapping.</li>
+<li>State dict: Keys get a <code>_module.</code> prefix, which can complicate checkpoint loading.</li>
+<li>Attribute access: Models with custom <code>__getattr__</code> (e.g., HuggingFace Transformers) may not work as expected.</li>
+</ul>
+<p>Non-wrapping mode attaches hooks directly to the model without wrapping it, maintaining the original model structure.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Setup">Setup<a class="anchor-link" href="#Setup">¶</a></h2><p>First, we import the necessary libraries and create a synthetic dataset:</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [1]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">"ignore"</span><span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">nn</span><span class="p">,</span> <span class="n">optim</span>
+<span class="kn">from</span> <span class="nn">torch.utils.data</span> <span class="kn">import</span> <span class="n">TensorDataset</span><span class="p">,</span> <span class="n">DataLoader</span>
+
+<span class="c1"># Create synthetic dataset</span>
+<span class="n">n_samples</span> <span class="o">=</span> <span class="mi">1000</span>
+<span class="n">n_features</span> <span class="o">=</span> <span class="mi">20</span>
+<span class="n">n_classes</span> <span class="o">=</span> <span class="mi">10</span>
+
+<span class="n">X</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">n_features</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">n_classes</span><span class="p">,</span> <span class="p">(</span><span class="n">n_samples</span><span class="p">,))</span>
+
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">TensorDataset</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="n">dataloader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Define-a-Model">Define a Model<a class="anchor-link" href="#Define-a-Model">¶</a></h2><p>We define a simple classifier for this tutorial:</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [2]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="k">class</span> <span class="nc">SimpleClassifier</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_dim</span><span class="p">,</span> <span class="n">hidden_dim</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fc1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">input_dim</span><span class="p">,</span> <span class="n">hidden_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fc2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">hidden_dim</span><span class="p">,</span> <span class="n">hidden_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fc3</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">hidden_dim</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relu</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fc1</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fc2</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fc3</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">SimpleClassifier</span><span class="p">(</span><span class="n">n_features</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="n">n_classes</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Model type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">model</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"isinstance check: </span><span class="si">{</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">SimpleClassifier</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Model type: SimpleClassifier
+isinstance check: True
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Comparison:-Wrapped-vs-Non-Wrapped">Comparison: Wrapped vs Non-Wrapped<a class="anchor-link" href="#Comparison:-Wrapped-vs-Non-Wrapped">¶</a></h2><p>We compare the default wrapped mode with non-wrapping mode:</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [3]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">opacus</span> <span class="kn">import</span> <span class="n">PrivacyEngine</span>
+
+<span class="c1"># === Default wrapped mode ===</span>
+<span class="n">model_wrapped</span> <span class="o">=</span> <span class="n">SimpleClassifier</span><span class="p">(</span><span class="n">n_features</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="n">n_classes</span><span class="p">)</span>
+<span class="n">optimizer_wrapped</span> <span class="o">=</span> <span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">model_wrapped</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.001</span><span class="p">)</span>
+
+<span class="n">privacy_engine</span> <span class="o">=</span> <span class="n">PrivacyEngine</span><span class="p">()</span>
+<span class="n">model_wrapped</span><span class="p">,</span> <span class="n">optimizer_wrapped</span><span class="p">,</span> <span class="n">dataloader_wrapped</span> <span class="o">=</span> <span class="n">privacy_engine</span><span class="o">.</span><span class="n">make_private</span><span class="p">(</span>
+    <span class="n">module</span><span class="o">=</span><span class="n">model_wrapped</span><span class="p">,</span>
+    <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer_wrapped</span><span class="p">,</span>
+    <span class="n">data_loader</span><span class="o">=</span><span class="n">dataloader</span><span class="p">,</span>
+    <span class="n">noise_multiplier</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">max_grad_norm</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+    <span class="c1"># wrap_model=True is the default</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">"=== Wrapped Mode (default) ==="</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Model type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">model_wrapped</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"isinstance check: </span><span class="si">{</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">model_wrapped</span><span class="p">,</span><span class="w"> </span><span class="n">SimpleClassifier</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"State dict keys (first 3): </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">model_wrapped</span><span class="o">.</span><span class="n">state_dict</span><span class="p">()</span><span class="o">.</span><span class="n">keys</span><span class="p">())[:</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>=== Wrapped Mode (default) ===
+Model type: GradSampleModule
+isinstance check: False
+State dict keys (first 3): ['_module.fc1.weight', '_module.fc1.bias', '_module.fc2.weight']
+
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [4]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># === Non-wrapping mode ===</span>
+<span class="n">model_nowrap</span> <span class="o">=</span> <span class="n">SimpleClassifier</span><span class="p">(</span><span class="n">n_features</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="n">n_classes</span><span class="p">)</span>
+<span class="n">optimizer_nowrap</span> <span class="o">=</span> <span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">model_nowrap</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.001</span><span class="p">)</span>
+
+<span class="n">privacy_engine2</span> <span class="o">=</span> <span class="n">PrivacyEngine</span><span class="p">()</span>
+<span class="n">hooks</span><span class="p">,</span> <span class="n">optimizer_nowrap</span><span class="p">,</span> <span class="n">dataloader_nowrap</span> <span class="o">=</span> <span class="n">privacy_engine2</span><span class="o">.</span><span class="n">make_private</span><span class="p">(</span>
+    <span class="n">module</span><span class="o">=</span><span class="n">model_nowrap</span><span class="p">,</span>
+    <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer_nowrap</span><span class="p">,</span>
+    <span class="n">data_loader</span><span class="o">=</span><span class="n">dataloader</span><span class="p">,</span>
+    <span class="n">noise_multiplier</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">max_grad_norm</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">wrap_model</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>  <span class="c1"># Enable non-wrapping mode</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">"=== Non-Wrapping Mode ==="</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Hooks type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">hooks</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Model type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">model_nowrap</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"isinstance check: </span><span class="si">{</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">model_nowrap</span><span class="p">,</span><span class="w"> </span><span class="n">SimpleClassifier</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"State dict keys (first 3): </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">model_nowrap</span><span class="o">.</span><span class="n">state_dict</span><span class="p">()</span><span class="o">.</span><span class="n">keys</span><span class="p">())[:</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"The model instance remains unchanged and can be used directly."</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>=== Non-Wrapping Mode ===
+Hooks type: GradSampleHooks
+Model type: SimpleClassifier
+isinstance check: True
+State dict keys (first 3): ['fc1.weight', 'fc1.bias', 'fc2.weight']
+The model instance remains unchanged and can be used directly.
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><strong>Key differences:</strong></p>
+<ul>
+<li>Wrapped: Model becomes <code>GradSampleModule</code>, <code>isinstance()</code> returns <code>False</code>, keys have <code>_module.</code> prefix.</li>
+<li>Non-wrapped: Model remains <code>SimpleClassifier</code>, <code>isinstance()</code> returns <code>True</code>, state dict keys are clean.</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Model-Usage-in-Non-Wrapping-Mode">Model Usage in Non-Wrapping Mode<a class="anchor-link" href="#Model-Usage-in-Non-Wrapping-Mode">¶</a></h2><p>In non-wrapping mode, <code>make_private</code> returns a hooks object for cleanup. The original model remains unchanged and should be used for all operations.</p>
+<div class="highlight"><pre><span></span><span class="c1"># Your model</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">SimpleClassifier</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="c1"># Make private returns hooks</span>
+<span class="n">hooks</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">dataloader</span> <span class="o">=</span> <span class="n">privacy_engine</span><span class="o">.</span><span class="n">make_private</span><span class="p">(</span>
+    <span class="n">module</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
+    <span class="n">wrap_model</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="c1"># ...</span>
+<span class="p">)</span>
+
+<span class="c1"># Recommended: Use the original model instance</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span>              <span class="c1"># The original model is used directly</span>
+<span class="n">state_dict</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">state_dict</span><span class="p">()</span>   <span class="c1"># Use it normally</span>
+<span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>                      <span class="c1"># Standard state transitions work</span>
+
+<span class="c1"># Avoid using the hooks object for model operations</span>
+<span class="c1"># hooks.state_dict()               # These operations are not supported by the hooks object</span>
+<span class="c1"># hooks(input)</span>
+</pre></div>
+<p>The hooks object is primarily used for cleanup: <code>hooks.cleanup()</code>.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [5]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">"cuda"</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s2">"cpu"</span><span class="p">)</span>
+<span class="n">model_nowrap</span> <span class="o">=</span> <span class="n">model_nowrap</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+<span class="n">criterion</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">()</span>
+
+<span class="n">EPOCHS</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">DELTA</span> <span class="o">=</span> <span class="mf">1e-5</span>
+
+<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">EPOCHS</span><span class="p">):</span>
+    <span class="n">model_nowrap</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
+    <span class="n">total_loss</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">for</span> <span class="n">batch_idx</span><span class="p">,</span> <span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dataloader_nowrap</span><span class="p">):</span>
+        <span class="n">data</span><span class="p">,</span> <span class="n">target</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">),</span> <span class="n">target</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="n">optimizer_nowrap</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">model_nowrap</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">criterion</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+        <span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+        <span class="n">optimizer_nowrap</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+
+        <span class="n">total_loss</span> <span class="o">+=</span> <span class="n">loss</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+
+    <span class="n">epsilon</span> <span class="o">=</span> <span class="n">privacy_engine2</span><span class="o">.</span><span class="n">get_epsilon</span><span class="p">(</span><span class="n">DELTA</span><span class="p">)</span>
+    <span class="n">avg_loss</span> <span class="o">=</span> <span class="n">total_loss</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">dataloader_nowrap</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"Epoch </span><span class="si">{</span><span class="n">epoch</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">EPOCHS</span><span class="si">}</span><span class="s2"> | Loss: </span><span class="si">{</span><span class="n">avg_loss</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> | ε: </span><span class="si">{</span><span class="n">epsilon</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> (δ=</span><span class="si">{</span><span class="n">DELTA</span><span class="si">}</span><span class="s2">)"</span>
+    <span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Epoch 3/3 | Loss: 2.3059 | ε: 2.18 (δ=1e-05)
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [6]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Clean up hooks</span>
+<span class="n">hooks</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Hooks cleaned up successfully"</span><span class="p">)</span>
+
+<span class="c1"># The model is restored to its original state</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Model can now be used normally"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Hooks cleaned up successfully
+Model can now be used normally
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="What-Does-Cleanup-Do?">What Does Cleanup Do?<a class="anchor-link" href="#What-Does-Cleanup-Do?">¶</a></h2><p>The <code>cleanup()</code> method:</p>
+<ol>
+<li>Removes all hooks attached during <code>make_private()</code>.</li>
+<li>Deletes attributes added to parameters (e.g., <code>grad_sample</code>, <code>_forward_counter</code>).</li>
+<li>Restores the model to its original state.</li>
+</ol>
+<p>Without cleanup, these hooks and attributes remain, which can:</p>
+<ul>
+<li>Increase memory usage.</li>
+<li>Interfere with subsequent training.</li>
+<li>Lead to unexpected behavior in non-DP contexts.</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Saving-and-Loading-Checkpoints">Saving and Loading Checkpoints<a class="anchor-link" href="#Saving-and-Loading-Checkpoints">¶</a></h2><p>In non-wrapping mode, checkpoints can be saved and loaded using the original model instance. The state dict keys remain clean, without the <code>_module.</code> prefix.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [7]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Save checkpoint (train a fresh model first)</span>
+<span class="n">model_save</span> <span class="o">=</span> <span class="n">SimpleClassifier</span><span class="p">(</span><span class="n">n_features</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="n">n_classes</span><span class="p">)</span>
+<span class="n">optimizer_save</span> <span class="o">=</span> <span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">model_save</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.001</span><span class="p">)</span>
+
+<span class="n">privacy_engine3</span> <span class="o">=</span> <span class="n">PrivacyEngine</span><span class="p">()</span>
+<span class="n">hooks_save</span><span class="p">,</span> <span class="n">optimizer_save</span><span class="p">,</span> <span class="n">dataloader_save</span> <span class="o">=</span> <span class="n">privacy_engine3</span><span class="o">.</span><span class="n">make_private</span><span class="p">(</span>
+    <span class="n">module</span><span class="o">=</span><span class="n">model_save</span><span class="p">,</span>
+    <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer_save</span><span class="p">,</span>
+    <span class="n">data_loader</span><span class="o">=</span><span class="n">dataloader</span><span class="p">,</span>
+    <span class="n">noise_multiplier</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">max_grad_norm</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">wrap_model</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Use model_save directly - it's unchanged</span>
+<span class="c1"># Save state dict - keys do not have the _module. prefix</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span>
+    <span class="p">{</span>
+        <span class="s2">"model_state_dict"</span><span class="p">:</span> <span class="n">model_save</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span>
+        <span class="s2">"optimizer_state_dict"</span><span class="p">:</span> <span class="n">optimizer_save</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span>
+    <span class="p">},</span>
+    <span class="s2">"checkpoint.pt"</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Checkpoint saved with clean state dict keys"</span><span class="p">)</span>
+
+<span class="c1"># Clean up</span>
+<span class="n">hooks_save</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Checkpoint saved with clean state dict keys
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [8]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Load checkpoint into a new model</span>
+<span class="n">model_load</span> <span class="o">=</span> <span class="n">SimpleClassifier</span><span class="p">(</span><span class="n">n_features</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="n">n_classes</span><span class="p">)</span>
+<span class="n">optimizer_load</span> <span class="o">=</span> <span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">model_load</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.001</span><span class="p">)</span>
+
+<span class="n">checkpoint</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">"checkpoint.pt"</span><span class="p">)</span>
+<span class="n">model_load</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">[</span><span class="s2">"model_state_dict"</span><span class="p">])</span>  <span class="c1"># No prefix issues</span>
+<span class="n">optimizer_load</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">[</span><span class="s2">"optimizer_state_dict"</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Checkpoint loaded successfully"</span><span class="p">)</span>
+
+<span class="c1"># Continue training with DP if needed</span>
+<span class="n">privacy_engine4</span> <span class="o">=</span> <span class="n">PrivacyEngine</span><span class="p">()</span>
+<span class="n">hooks_load</span><span class="p">,</span> <span class="n">optimizer_load</span><span class="p">,</span> <span class="n">dataloader_load</span> <span class="o">=</span> <span class="n">privacy_engine4</span><span class="o">.</span><span class="n">make_private</span><span class="p">(</span>
+    <span class="n">module</span><span class="o">=</span><span class="n">model_load</span><span class="p">,</span>
+    <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer_load</span><span class="p">,</span>
+    <span class="n">data_loader</span><span class="o">=</span><span class="n">dataloader</span><span class="p">,</span>
+    <span class="n">noise_multiplier</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">max_grad_norm</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">wrap_model</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Ready to continue training"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Checkpoint loaded successfully
+Ready to continue training
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Using-make_private_with_epsilon">Using <code>make_private_with_epsilon</code><a class="anchor-link" href="#Using-make_private_with_epsilon">¶</a></h2><p>Non-wrapping mode is also compatible with <code>make_private_with_epsilon</code>, which automatically calculates the noise multiplier based on your target privacy budget.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [9]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">model_eps</span> <span class="o">=</span> <span class="n">SimpleClassifier</span><span class="p">(</span><span class="n">n_features</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="n">n_classes</span><span class="p">)</span>
+<span class="n">optimizer_eps</span> <span class="o">=</span> <span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">model_eps</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.001</span><span class="p">)</span>
+<span class="n">dataloader_eps</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">privacy_engine5</span> <span class="o">=</span> <span class="n">PrivacyEngine</span><span class="p">()</span>
+<span class="n">hooks_eps</span><span class="p">,</span> <span class="n">optimizer_eps</span><span class="p">,</span> <span class="n">dataloader_eps</span> <span class="o">=</span> <span class="n">privacy_engine5</span><span class="o">.</span><span class="n">make_private_with_epsilon</span><span class="p">(</span>
+    <span class="n">module</span><span class="o">=</span><span class="n">model_eps</span><span class="p">,</span>
+    <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer_eps</span><span class="p">,</span>
+    <span class="n">data_loader</span><span class="o">=</span><span class="n">dataloader_eps</span><span class="p">,</span>
+    <span class="n">target_epsilon</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span>
+    <span class="n">target_delta</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">,</span>
+    <span class="n">epochs</span><span class="o">=</span><span class="n">EPOCHS</span><span class="p">,</span>
+    <span class="n">max_grad_norm</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">wrap_model</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>  <span class="c1"># Works with non-wrapping mode</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Target epsilon: 3.0"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Computed noise multiplier: </span><span class="si">{</span><span class="n">optimizer_eps</span><span class="o">.</span><span class="n">noise_multiplier</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+<span class="c1"># Cleanup when finished</span>
+<span class="n">hooks_eps</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Target epsilon: 3.0
+Computed noise multiplier: 0.875
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="When-to-Use-Non-Wrapping-Mode?">When to Use Non-Wrapping Mode?<a class="anchor-link" href="#When-to-Use-Non-Wrapping-Mode?">¶</a></h2><p>Use <code>wrap_model=False</code> when:</p>
+<ul>
+<li>Working with HuggingFace Transformers or models with custom <code>__getattr__</code>.</li>
+<li><code>isinstance()</code> checks are required.</li>
+<li>Clean state dicts without <code>_module.</code> prefixes are preferred.</li>
+<li>The pipeline relies on model type introspection.</li>
+</ul>
+<p>Use default <code>wrap_model=True</code> when:</p>
+<ul>
+<li>Working with standard models without complex introspection needs.</li>
+<li>Automatic cleanup is preferred (wrapper discarded when out of scope).</li>
+</ul>
+<p><strong>Note:</strong> ExpandedWeights mode (<code>grad_sample_mode="ew"</code>) is not supported with non-wrapping mode, as it requires overriding the model's <code>.forward()</code> method.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Summary">Summary<a class="anchor-link" href="#Summary">¶</a></h2><table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Wrapped Mode</th>
+<th>Non-Wrapping Mode</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API parameter</td>
+<td><code>wrap_model=True</code> (default)</td>
+<td><code>wrap_model=False</code></td>
+</tr>
+<tr>
+<td>Model type preserved</td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>isinstance()</code> works</td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>State dict keys</td>
+<td><code>_module.</code> prefix</td>
+<td>Clean</td>
+</tr>
+<tr>
+<td>Cleanup required</td>
+<td>Automatic</td>
+<td>Manual (<code>.cleanup()</code>)</td>
+</tr>
+<tr>
+<td>HuggingFace compatibility</td>
+<td>May have issues</td>
+<td>Better</td>
+</tr>
+<tr>
+<td>ExpandedWeights support</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key takeaway:</strong> Non-wrapping mode provides a compatible alternative for architectures where model wrapping is problematic. Manual cleanup using the hooks object is required.</p>
+</div>
+</div>
+</div>
+</div></div><div class="tutorialButtonWrapper buttonWrapper"><a class="tutorialButton button" download="" href="https://github.com/pytorch/opacus/blob/main/tutorials/non_wrapping_mode.ipynb" target="_blank"><svg aria-hidden="true" focusable="false" data-prefix="fas" data-icon="file-download" class="svg-inline--fa fa-file-download fa-w-12" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path fill="currentColor" d="M224 136V0H24C10.7 0 0 10.7 0 24v464c0 13.3 10.7 24 24 24h336c13.3 0 24-10.7 24-24V160H248c-13.2 0-24-10.8-24-24zm76.45 211.36l-96.42 95.7c-6.65 6.61-17.39 6.61-24.04 0l-96.42-95.7C73.42 337.29 80.54 320 94.82 320H160v-80c0-8.84 7.16-16 16-16h32c8.84 0 16 7.16 16 16v80h65.18c14.28 0 21.4 17.29 11.27 27.36zM377 105L279.1 7c-4.5-4.5-10.6-7-17-7H256v128h128v-6.1c0-6.3-2.5-12.4-7-16.9z"></path></svg>Download Tutorial Jupyter Notebook</a></div></div></div></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/opacus_favicon.svg" alt="Opacus" width="66" height="58"/></a><div class="footerSection"><h5>Docs</h5><a href="/docs/introduction">Introduction</a><a href="/docs/faq">FAQ</a><a href="/tutorials/">Tutorials</a><a href="/api/">API Reference</a></div><div class="footerSection"><h5>Github</h5><div class="social"><a class="github-button" href="https://github.com/meta-pytorch/opacus" data-count-href="https://github.com/meta-pytorch/opacus/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star Opacus on GitHub">opacus</a></div></div><div class="footerSection"><h5>Legal</h5><a href="https://opensource.facebook.com/legal/privacy/" target="_blank" rel="noreferrer noopener">Privacy</a><a href="https://opensource.facebook.com/legal/terms/" target="_blank" rel="noreferrer noopener">Terms</a></div></section><a href="https://opensource.facebook.com/" target="_blank" rel="noreferrer noopener" class="fbOpenSource"><img src="/img/oss_logo.png" alt="Meta Open Source" width="250" height="95"/></a><section class="copyright"> Copyright © 2026 Meta Platforms, Inc.</section></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: '207c27d819f967749142d8611de7cb19',
+                indexName: 'opacus',
+                inputSelector: '#search_input_react'
+              });
+            </script></body></html>

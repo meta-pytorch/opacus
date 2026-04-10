@@ -40,8 +40,11 @@
 <span class="c1"># See the License for the specific language governing permissions and</span>
 <span class="c1"># limitations under the License.</span>
 
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span>
+
 <span class="kn">import</span> <span class="nn">torch</span>
-<span class="kn">from</span> <span class="nn">opacus.grad_sample.grad_sample_module_fast_gradient_clipping</span> <span class="kn">import</span> <span class="p">(</span>
+<span class="kn">from</span> <span class="nn">opacus.grad_sample</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">GradSampleHooksFastGradientClipping</span><span class="p">,</span>
     <span class="n">GradSampleModuleFastGradientClipping</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">opacus.optimizers</span> <span class="kn">import</span> <span class="n">DPOptimizerFastGradientClipping</span>
@@ -56,14 +59,16 @@
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">module</span><span class="p">:</span> <span class="n">GradSampleModuleFastGradientClipping</span><span class="p">,</span>
+        <span class="n">module</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span>
+            <span class="n">GradSampleModuleFastGradientClipping</span><span class="p">,</span> <span class="n">GradSampleHooksFastGradientClipping</span>
+        <span class="p">],</span>
         <span class="n">optimizer</span><span class="p">:</span> <span class="n">DPOptimizerFastGradientClipping</span><span class="p">,</span>
         <span class="n">loss_per_sample</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="n">loss_reduction</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"mean"</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Args:</span>
-<span class="sd">            module: the module to train</span>
+<span class="sd">            module: the (GradSample) module to train or hooks handling object</span>
 <span class="sd">            optimizer: the optimizer used to train the module</span>
 <span class="sd">            loss_per_sample: loss on each sample in the mini-batch of size [batch_size, 1]</span>
 <span class="sd">        """</span>
@@ -238,7 +243,9 @@
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">module</span><span class="p">:</span> <span class="n">GradSampleModuleFastGradientClipping</span><span class="p">,</span>
+        <span class="n">module</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span>
+            <span class="n">GradSampleModuleFastGradientClipping</span><span class="p">,</span> <span class="n">GradSampleHooksFastGradientClipping</span>
+        <span class="p">],</span>
         <span class="n">optimizer</span><span class="p">:</span> <span class="n">DPOptimizerFastGradientClipping</span><span class="p">,</span>
         <span class="n">criterion</span><span class="p">,</span>
         <span class="n">loss_reduction</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"mean"</span><span class="p">,</span>

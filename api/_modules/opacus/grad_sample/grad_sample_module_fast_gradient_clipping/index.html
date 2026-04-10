@@ -49,10 +49,11 @@
 <span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
 <span class="kn">from</span> <span class="nn">opacus.grad_sample.functorch</span> <span class="kn">import</span> <span class="n">ft_compute_per_sample_gradient</span>
 <span class="kn">from</span> <span class="nn">opacus.grad_sample.grad_sample_module</span> <span class="kn">import</span> <span class="p">(</span>
-    <span class="n">GradSampleModule</span><span class="p">,</span>
+    <span class="n">GradSampleHooks</span><span class="p">,</span>
     <span class="n">create_or_accumulate_grad_sample</span><span class="p">,</span>
     <span class="n">promote_current_grad_sample</span><span class="p">,</span>
 <span class="p">)</span>
+<span class="kn">from</span> <span class="nn">opacus.grad_sample.gsm_base</span> <span class="kn">import</span> <span class="n">AbstractGradSampleModule</span>
 <span class="kn">from</span> <span class="nn">opacus.layers.dp_rnn</span> <span class="kn">import</span> <span class="n">DPGRU</span><span class="p">,</span> <span class="n">DPLSTM</span><span class="p">,</span> <span class="n">DPRNN</span>
 <span class="kn">from</span> <span class="nn">opacus.utils.module_utils</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">requires_grad</span><span class="p">,</span>
@@ -99,11 +100,11 @@
 
 
 
-<div class="viewcode-block" id="GradSampleModuleFastGradientClipping">
-<a class="viewcode-back" href="../../../grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping">[docs]</a>
-<span class="k">class</span> <span class="nc">GradSampleModuleFastGradientClipping</span><span class="p">(</span><span class="n">GradSampleModule</span><span class="p">):</span>
+<div class="viewcode-block" id="GradSampleHooksFastGradientClipping">
+<a class="viewcode-back" href="../../../grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping">[docs]</a>
+<span class="k">class</span> <span class="nc">GradSampleHooksFastGradientClipping</span><span class="p">(</span><span class="n">GradSampleHooks</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""</span>
-<span class="sd">    Hooks-based implementation of GradSampleModule with Fast Gradient and Ghost Clipping</span>
+<span class="sd">    Hooks-based implementation for Fast Gradient and Ghost Clipping</span>
 
 <span class="sd">    Computes norms of gradients without gradient instantiation</span>
 <span class="sd">    """</span>
@@ -124,7 +125,7 @@
 <span class="w">        </span><span class="sd">"""</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            m: nn.Module to be wrapped</span>
+<span class="sd">            m: nn.Module to be attached to</span>
 <span class="sd">            batch_first: Flag to indicate if the input tensor to the corresponding module</span>
 <span class="sd">                has the first dimension representing the batch. If set to True, dimensions on</span>
 <span class="sd">                input tensor are expected be ``[batch_size, ...]``, otherwise</span>
@@ -165,16 +166,16 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">use_ghost_clipping</span> <span class="o">=</span> <span class="n">use_ghost_clipping</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_per_sample_gradient_norms</span> <span class="o">=</span> <span class="kc">None</span>
 
-<div class="viewcode-block" id="GradSampleModuleFastGradientClipping.get_clipping_coef">
-<a class="viewcode-back" href="../../../grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.get_clipping_coef">[docs]</a>
+<div class="viewcode-block" id="GradSampleHooksFastGradientClipping.get_clipping_coef">
+<a class="viewcode-back" href="../../../grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.get_clipping_coef">[docs]</a>
     <span class="k">def</span> <span class="nf">get_clipping_coef</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Get per-example gradient scaling factor for clipping."""</span>
         <span class="n">norm_sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_norm_sample</span><span class="p">()</span>
         <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_grad_norm</span> <span class="o">/</span> <span class="p">(</span><span class="n">norm_sample</span> <span class="o">+</span> <span class="mf">1e-6</span><span class="p">))</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">max</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="GradSampleModuleFastGradientClipping.get_norm_sample">
-<a class="viewcode-back" href="../../../grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.get_norm_sample">[docs]</a>
+<div class="viewcode-block" id="GradSampleHooksFastGradientClipping.get_norm_sample">
+<a class="viewcode-back" href="../../../grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.get_norm_sample">[docs]</a>
     <span class="k">def</span> <span class="nf">get_norm_sample</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Get per-example gradient norms."""</span>
         <span class="n">norm_samples</span> <span class="o">=</span> <span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">_norm_sample</span> <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trainable_parameters</span><span class="p">]</span>
@@ -215,8 +216,8 @@
                     <span class="s2">"Parameter tying is not supported with Ghost Clipping"</span>
                 <span class="p">)</span>
 
-<div class="viewcode-block" id="GradSampleModuleFastGradientClipping.capture_backprops_hook">
-<a class="viewcode-back" href="../../../grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.capture_backprops_hook">[docs]</a>
+<div class="viewcode-block" id="GradSampleHooksFastGradientClipping.capture_backprops_hook">
+<a class="viewcode-back" href="../../../grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.capture_backprops_hook">[docs]</a>
     <span class="k">def</span> <span class="nf">capture_backprops_hook</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">module</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
@@ -292,8 +293,8 @@
                 <span class="k">del</span> <span class="n">module</span><span class="o">.</span><span class="n">max_batch_len</span></div>
 
 
-<div class="viewcode-block" id="GradSampleModuleFastGradientClipping.log_module_gradient_sample_mode">
-<a class="viewcode-back" href="../../../grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.log_module_gradient_sample_mode">[docs]</a>
+<div class="viewcode-block" id="GradSampleHooksFastGradientClipping.log_module_gradient_sample_mode">
+<a class="viewcode-back" href="../../../grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.log_module_gradient_sample_mode">[docs]</a>
     <span class="k">def</span> <span class="nf">log_module_gradient_sample_mode</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">force_functorch</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">use_ghost_clipping</span><span class="o">=</span><span class="kc">True</span>
     <span class="p">):</span>
@@ -345,6 +346,68 @@
     <span class="nd">@per_sample_gradient_norms</span><span class="o">.</span><span class="n">setter</span>
     <span class="k">def</span> <span class="nf">per_sample_gradient_norms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_per_sample_gradient_norms</span> <span class="o">=</span> <span class="n">value</span></div>
+
+
+
+<div class="viewcode-block" id="GradSampleModuleFastGradientClipping">
+<a class="viewcode-back" href="../../../grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping">[docs]</a>
+<span class="k">class</span> <span class="nc">GradSampleModuleFastGradientClipping</span><span class="p">(</span>
+    <span class="n">GradSampleHooksFastGradientClipping</span><span class="p">,</span> <span class="n">AbstractGradSampleModule</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Hooks-based implementation of GradSampleModule with Fast Gradient and Ghost Clipping</span>
+
+<span class="sd">    Computes norms of gradients without gradient instantiation</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">m</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">batch_first</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">loss_reduction</span><span class="o">=</span><span class="s2">"mean"</span><span class="p">,</span>
+        <span class="n">strict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">force_functorch</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">max_grad_norm</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">use_ghost_clipping</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            m: nn.Module to be wrapped</span>
+<span class="sd">            batch_first: Flag to indicate if the input tensor to the corresponding module</span>
+<span class="sd">                has the first dimension representing the batch. If set to True, dimensions on</span>
+<span class="sd">                input tensor are expected be ``[batch_size, ...]``, otherwise</span>
+<span class="sd">                ``[K, batch_size, ...]``</span>
+<span class="sd">            loss_reduction: Indicates if the loss reduction (for aggregating the gradients)</span>
+<span class="sd">                is a sum or a mean operation. Can take values "sum" or "mean"</span>
+<span class="sd">            max_grad_norm: The value at which gradients are to be clipped.</span>
+<span class="sd">            strict: If set to True, the input module will be validated to make sure that</span>
+<span class="sd">                it does not have buffers in all its submodules.</span>
+<span class="sd">            force_functorch: If set to ``True``, will use functorch to compute</span>
+<span class="sd">                all per sample gradients. Otherwise, functorch will be used only</span>
+<span class="sd">                for layers without registered grad sampler methods.</span>
+<span class="sd">            use_ghost_clipping: If set to ``True``, Ghost Clipping</span>
+<span class="sd">                will be used for clipping gradients of supported layers. If ``False``, Fast</span>
+<span class="sd">                Gradient Clipping will be used for all layers.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            NotImplementedError</span>
+<span class="sd">                If ``strict`` is set to ``True`` and module ``m`` (or any of its</span>
+<span class="sd">                submodules) includes a buffer.</span>
+<span class="sd">        """</span>
+        <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">GradSampleHooksFastGradientClipping</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">m</span><span class="p">,</span>
+            <span class="n">batch_first</span><span class="o">=</span><span class="n">batch_first</span><span class="p">,</span>
+            <span class="n">loss_reduction</span><span class="o">=</span><span class="n">loss_reduction</span><span class="p">,</span>
+            <span class="n">strict</span><span class="o">=</span><span class="n">strict</span><span class="p">,</span>
+            <span class="n">force_functorch</span><span class="o">=</span><span class="n">force_functorch</span><span class="p">,</span>
+            <span class="n">max_grad_norm</span><span class="o">=</span><span class="n">max_grad_norm</span><span class="p">,</span>
+            <span class="n">use_ghost_clipping</span><span class="o">=</span><span class="n">use_ghost_clipping</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grad_accumulation_hook</span> <span class="o">=</span> <span class="kc">None</span></div>
 
 </pre></div>
 </div>

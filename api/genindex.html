@@ -58,7 +58,7 @@
 <li><a href="optim/dp_optimizer_fast_gradient_clipping.html#opacus.optimizers.optimizer_fast_gradient_clipping.DPOptimizerFastGradientClipping.accumulated_iterations">(opacus.optimizers.optimizer_fast_gradient_clipping.DPOptimizerFastGradientClipping property)</a>
 </li>
 </ul></li>
-<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleModule.add_hooks">add_hooks() (opacus.grad_sample.grad_sample_module.GradSampleModule method)</a>
+<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleHooks.add_hooks">add_hooks() (opacus.grad_sample.grad_sample_module.GradSampleHooks method)</a>
 </li>
 <li><a href="optim/dp_ddp_per_layer_optimizer.html#opacus.optimizers.ddp_perlayeroptimizer.DistributedPerLayerOptimizer.add_noise">add_noise() (opacus.optimizers.ddp_perlayeroptimizer.DistributedPerLayerOptimizer method)</a>
 <ul>
@@ -73,7 +73,7 @@
 </ul></li>
 </ul></td>
 <td style="width: 33%; vertical-align: top;"><ul>
-<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleModule.allow_grad_accumulation">allow_grad_accumulation() (opacus.grad_sample.grad_sample_module.GradSampleModule method)</a>
+<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleHooks.allow_grad_accumulation">allow_grad_accumulation() (opacus.grad_sample.grad_sample_module.GradSampleHooks method)</a>
 </li>
 <li><a href="dp_rnn.html#opacus.layers.dp_rnn.apply_permutation">apply_permutation() (in module opacus.layers.dp_rnn)</a>
 </li>
@@ -107,9 +107,9 @@
 </li>
 <li><a href="utils/tensor_utils.html#opacus.utils.tensor_utils.calc_sample_norms_one_layer">calc_sample_norms_one_layer() (in module opacus.utils.tensor_utils)</a>
 </li>
-<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleModule.capture_backprops_hook">capture_backprops_hook() (opacus.grad_sample.grad_sample_module.GradSampleModule method)</a>
+<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleHooks.capture_backprops_hook">capture_backprops_hook() (opacus.grad_sample.grad_sample_module.GradSampleHooks method)</a>
 <ul>
-<li><a href="grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.capture_backprops_hook">(opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping method)</a>
+<li><a href="grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.capture_backprops_hook">(opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping method)</a>
 </li>
 </ul></li>
 <li><a href="optim/dp_ddp_per_layer_optimizer.html#opacus.optimizers.ddp_perlayeroptimizer.DistributedPerLayerOptimizer.clip_and_accumulate">clip_and_accumulate() (opacus.optimizers.ddp_perlayeroptimizer.DistributedPerLayerOptimizer method)</a>
@@ -144,7 +144,7 @@
 </li>
 <li><a href="distributed.html#opacus.distributed.DifferentiallyPrivateDistributedDataParallel">DifferentiallyPrivateDistributedDataParallel (class in opacus.distributed)</a>
 </li>
-<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleModule.disable_hooks">disable_hooks() (opacus.grad_sample.grad_sample_module.GradSampleModule method)</a>
+<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleHooks.disable_hooks">disable_hooks() (opacus.grad_sample.grad_sample_module.GradSampleHooks method)</a>
 </li>
 <li><a href="optim/dp_ddp_optimizer.html#opacus.optimizers.ddpoptimizer.DistributedDPOptimizer">DistributedDPOptimizer (class in opacus.optimizers.ddpoptimizer)</a>
 </li>
@@ -193,7 +193,7 @@
 <h2 id="E">E</h2>
 <table class="indextable genindextable" style="width: 100%"><tr>
 <td style="width: 33%; vertical-align: top;"><ul>
-<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleModule.enable_hooks">enable_hooks() (opacus.grad_sample.grad_sample_module.GradSampleModule method)</a>
+<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleHooks.enable_hooks">enable_hooks() (opacus.grad_sample.grad_sample_module.GradSampleHooks method)</a>
 </li>
 </ul></td>
 </tr></table>
@@ -206,7 +206,7 @@
 </li>
 <li><a href="validator.html#opacus.validators.module_validator.ModuleValidator.fix_and_validate">fix_and_validate() (opacus.validators.module_validator.ModuleValidator class method)</a>
 </li>
-<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleModule.forbid_grad_accumulation">forbid_grad_accumulation() (opacus.grad_sample.grad_sample_module.GradSampleModule method)</a>
+<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleHooks.forbid_grad_accumulation">forbid_grad_accumulation() (opacus.grad_sample.grad_sample_module.GradSampleHooks method)</a>
 </li>
 <li><a href="distributed.html#opacus.distributed.DifferentiallyPrivateDistributedDataParallel.forward">forward() (opacus.distributed.DifferentiallyPrivateDistributedDataParallel method)</a>
 <ul>
@@ -238,7 +238,7 @@
 <td style="width: 33%; vertical-align: top;"><ul>
 <li><a href="accounting/gdp.html#opacus.accountants.gdp.GaussianAccountant">GaussianAccountant (class in opacus.accountants.gdp)</a>
 </li>
-<li><a href="grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.get_clipping_coef">get_clipping_coef() (opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping method)</a>
+<li><a href="grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.get_clipping_coef">get_clipping_coef() (opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping method)</a>
 </li>
 <li><a href="privacy_engine.html#opacus.privacy_engine.PrivacyEngine.get_compatible_module">get_compatible_module() (opacus.privacy_engine.PrivacyEngine class method)</a>
 </li>
@@ -251,17 +251,21 @@
 <li><a href="privacy_engine.html#opacus.privacy_engine.PrivacyEngine.get_epsilon">(opacus.privacy_engine.PrivacyEngine method)</a>
 </li>
 </ul></li>
-</ul></td>
-<td style="width: 33%; vertical-align: top;"><ul>
 <li><a href="accounting/utils.html#opacus.accountants.utils.get_noise_multiplier">get_noise_multiplier() (in module opacus.accountants.utils)</a>
 </li>
-<li><a href="grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.get_norm_sample">get_norm_sample() (opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping method)</a>
+</ul></td>
+<td style="width: 33%; vertical-align: top;"><ul>
+<li><a href="grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.get_norm_sample">get_norm_sample() (opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping method)</a>
 </li>
 <li><a href="accounting/iaccountant.html#opacus.accountants.accountant.IAccountant.get_optimizer_hook_fn">get_optimizer_hook_fn() (opacus.accountants.accountant.IAccountant method)</a>
 </li>
 <li><a href="utils/module_utils.html#opacus.utils.module_utils.get_submodule">get_submodule() (in module opacus.utils.module_utils)</a>
 </li>
 <li><a href="optim/dp_optimizer.html#opacus.optimizers.optimizer.DPOptimizer.grad_samples">grad_samples (opacus.optimizers.optimizer.DPOptimizer property)</a>
+</li>
+<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleHooks">GradSampleHooks (class in opacus.grad_sample.grad_sample_module)</a>
+</li>
+<li><a href="grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping">GradSampleHooksFastGradientClipping (class in opacus.grad_sample.grad_sample_module_fast_gradient_clipping)</a>
 </li>
 <li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleModule">GradSampleModule (class in opacus.grad_sample.grad_sample_module)</a>
 </li>
@@ -278,7 +282,7 @@
 </li>
 </ul></td>
 <td style="width: 33%; vertical-align: top;"><ul>
-<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleModule.is_supported">is_supported() (opacus.grad_sample.grad_sample_module.GradSampleModule class method)</a>
+<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleHooks.is_supported">is_supported() (opacus.grad_sample.grad_sample_module.GradSampleHooks class method)</a>
 </li>
 <li><a href="validator.html#opacus.validators.module_validator.ModuleValidator.is_valid">is_valid() (opacus.validators.module_validator.ModuleValidator class method)</a>
 </li>
@@ -298,7 +302,7 @@
 </ul></li>
 </ul></td>
 <td style="width: 33%; vertical-align: top;"><ul>
-<li><a href="grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.log_module_gradient_sample_mode">log_module_gradient_sample_mode() (opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping method)</a>
+<li><a href="grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.log_module_gradient_sample_mode">log_module_gradient_sample_mode() (opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping method)</a>
 </li>
 </ul></td>
 </tr></table>
@@ -577,7 +581,7 @@
 </li>
 <li><a href="optim/dp_optimizer.html#opacus.optimizers.optimizer.DPOptimizer.params">params (opacus.optimizers.optimizer.DPOptimizer property)</a>
 </li>
-<li><a href="grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping.per_sample_gradient_norms">per_sample_gradient_norms (opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleModuleFastGradientClipping property)</a>
+<li><a href="grad_sample_module_fast_gradient_clipping.html#opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping.per_sample_gradient_norms">per_sample_gradient_norms (opacus.grad_sample.grad_sample_module_fast_gradient_clipping.GradSampleHooksFastGradientClipping property)</a>
 </li>
 </ul></td>
 <td style="width: 33%; vertical-align: top;"><ul>
@@ -597,7 +601,7 @@
 <td style="width: 33%; vertical-align: top;"><ul>
 <li><a href="accounting/rdp.html#opacus.accountants.rdp.RDPAccountant">RDPAccountant (class in opacus.accountants.rdp)</a>
 </li>
-<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleModule.rearrange_grad_samples">rearrange_grad_samples() (opacus.grad_sample.grad_sample_module.GradSampleModule method)</a>
+<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleHooks.rearrange_grad_samples">rearrange_grad_samples() (opacus.grad_sample.grad_sample_module.GradSampleHooks method)</a>
 </li>
 <li><a href="validator.html#opacus.validators.utils.register_module_fixer">register_module_fixer() (in module opacus.validators.utils)</a>
 </li>
@@ -605,7 +609,7 @@
 <td style="width: 33%; vertical-align: top;"><ul>
 <li><a href="validator.html#opacus.validators.utils.register_module_validator">register_module_validator() (in module opacus.validators.utils)</a>
 </li>
-<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleModule.remove_hooks">remove_hooks() (opacus.grad_sample.grad_sample_module.GradSampleModule method)</a>
+<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleHooks.remove_hooks">remove_hooks() (opacus.grad_sample.grad_sample_module.GradSampleHooks method)</a>
 </li>
 <li><a href="utils/module_utils.html#opacus.utils.module_utils.requires_grad">requires_grad() (in module opacus.utils.module_utils)</a>
 </li>
@@ -687,7 +691,7 @@
 <h2 id="V">V</h2>
 <table class="indextable genindextable" style="width: 100%"><tr>
 <td style="width: 33%; vertical-align: top;"><ul>
-<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleModule.validate">validate() (opacus.grad_sample.grad_sample_module.GradSampleModule class method)</a>
+<li><a href="grad_sample_module.html#opacus.grad_sample.grad_sample_module.GradSampleHooks.validate">validate() (opacus.grad_sample.grad_sample_module.GradSampleHooks class method)</a>
 <ul>
 <li><a href="privacy_engine.html#opacus.privacy_engine.PrivacyEngine.validate">(opacus.privacy_engine.PrivacyEngine method)</a>
 </li>
