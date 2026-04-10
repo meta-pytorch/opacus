@@ -19,25 +19,27 @@ import logging
 import warnings
 
 import torch
+import torch.nn as nn
 from opacus.grad_sample.grad_sample_module_fast_gradient_clipping import (
-    GradSampleModuleFastGradientClipping,
+    GradSampleHooksFastGradientClipping,
 )
+from opacus.grad_sample.gsm_base import AbstractGradSampleModule
 
 
 logger = logging.getLogger(__name__)
 logger.disabled = False
 
 
-class GradSampleModuleFastGradientClippingTP(GradSampleModuleFastGradientClipping):
+class GradSampleHooksFastGradientClippingTP(GradSampleHooksFastGradientClipping):
     """
-    Hooks-based implementation of GradSampleModule with Fast Gradient and Ghost Clipping
+    Hooks-based implementation for Fast Gradient and Ghost Clipping with TP support
 
     Computes norms of gradients without gradient instantiation
     """
 
     def __init__(
         self,
-        m: torch.nn.Module,
+        m: nn.Module,
         *,
         batch_first=True,
         loss_reduction="mean",
@@ -111,3 +113,35 @@ class GradSampleModuleFastGradientClippingTP(GradSampleModuleFastGradientClippin
         )
         self.per_sample_gradient_norms = squared_norm_sample.sqrt()
         return squared_norm_sample.sqrt()
+
+
+class GradSampleModuleFastGradientClippingTP(
+    GradSampleHooksFastGradientClippingTP, AbstractGradSampleModule
+):
+    """
+    Hooks-based implementation of GradSampleModule with Fast Gradient and Ghost Clipping
+
+    Computes norms of gradients without gradient instantiation
+    """
+
+    def __init__(
+        self,
+        m: nn.Module,
+        *,
+        batch_first=True,
+        loss_reduction="mean",
+        strict: bool = True,
+        force_functorch=False,
+        max_grad_norm=1,
+    ):
+        nn.Module.__init__(self)
+        GradSampleHooksFastGradientClippingTP.__init__(
+            self,
+            m,
+            batch_first=batch_first,
+            loss_reduction=loss_reduction,
+            strict=strict,
+            force_functorch=force_functorch,
+            max_grad_norm=max_grad_norm,
+        )
+        self.grad_accumulation_hook = None

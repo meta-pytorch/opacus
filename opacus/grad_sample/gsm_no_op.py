@@ -15,13 +15,16 @@
 
 import torch
 import torch.nn as nn
-from opacus.grad_sample.gsm_base import AbstractGradSampleModule
+from opacus.grad_sample.gsm_base import (
+    AbstractGradSampleHooks,
+    AbstractGradSampleModule,
+)
 
 
-class GradSampleModuleNoOp(AbstractGradSampleModule):
+class GradSampleHooksNoOp(AbstractGradSampleHooks):
     """
-    NoOp GradSampleModule.
-    Only wraps the module. The main goal of this class is to provide the same API for all methods.
+    NoOp GradSampleHooks.
+    Only manages parameter attributes. The main goal of this class is to provide the same API for all methods.
     See README.md for more details
     """
 
@@ -40,6 +43,33 @@ class GradSampleModuleNoOp(AbstractGradSampleModule):
             batch_first=batch_first,
             loss_reduction=loss_reduction,
         )
+
+    def remove_hooks(self) -> None:
+        pass
+
+
+class GradSampleModuleNoOp(GradSampleHooksNoOp, AbstractGradSampleModule):
+    """
+    NoOp GradSampleModule.
+    Only wraps the module. The main goal of this class is to provide the same API for all methods.
+    See README.md for more details
+    """
+
+    def __init__(
+        self,
+        m: nn.Module,
+        *,
+        batch_first=True,
+        loss_reduction="mean",
+    ):
+        nn.Module.__init__(self)
+        GradSampleHooksNoOp.__init__(
+            self,
+            m,
+            batch_first=batch_first,
+            loss_reduction=loss_reduction,
+        )
+        self.grad_accumulation_hook = None
 
     def forward(self, x: torch.Tensor, *args, **kwargs):
         return self._module.forward(x, *args, **kwargs)

@@ -50,3 +50,6 @@ class GradSampleModuleExpandedWeights(AbstractGradSampleModule):
             batch_size=x.shape[0],
             loss_reduction=self.loss_reduction,
         )(x, *args, **kwargs)
+
+    def remove_hooks(self) -> None:
+        pass

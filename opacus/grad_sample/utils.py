@@ -17,16 +17,21 @@ from typing import Sequence, Type, Union
 
 import torch.nn as nn
 
-from .grad_sample_module import GradSampleModule
+from .grad_sample_module import GradSampleHooks, GradSampleModule
 from .grad_sample_module_fast_gradient_clipping import (
+    GradSampleHooksFastGradientClipping,
     GradSampleModuleFastGradientClipping,
 )
 from .grad_sample_module_fast_gradient_clipping_fsdp import (
+    GradSampleHooksFastGradientClippingFSDP,
     GradSampleModuleFastGradientClippingFSDP,
+)
+from .grad_sample_module_fast_gradient_clipping_tp import (
+    GradSampleHooksFastGradientClippingTP,
 )
 from .gsm_base import AbstractGradSampleModule
 from .gsm_exp_weights import GradSampleModuleExpandedWeights
-from .gsm_no_op import GradSampleModuleNoOp
+from .gsm_no_op import GradSampleHooksNoOp, GradSampleModuleNoOp
 
 
 def register_grad_sampler(
@@ -51,8 +56,8 @@ def register_grad_sampler(
             else [target_class_or_classes]
         )
         for target_class in target_classes:
-            GradSampleModule.GRAD_SAMPLERS[target_class] = f
-            GradSampleModuleFastGradientClipping.GRAD_SAMPLERS[target_class] = f
+            GradSampleHooks.GRAD_SAMPLERS[target_class] = f
+            GradSampleHooksFastGradientClipping.GRAD_SAMPLERS[target_class] = f
         return f
 
     return decorator
@@ -78,17 +83,54 @@ def register_norm_sampler(
             else [target_class_or_classes]
         )
         for target_class in target_classes:
-            GradSampleModuleFastGradientClipping.NORM_SAMPLERS[target_class] = f
+            GradSampleHooksFastGradientClipping.NORM_SAMPLERS[target_class] = f
         return f
 
     return decorator
 
 
-def wrap_model(model: nn.Module, grad_sample_mode: str, *args, **kwargs):
-    cls = get_gsm_class(grad_sample_mode)
+def prepare_module(
+    model: nn.Module,
+    grad_sample_mode: str,
+    wrap_model: bool = True,
+    *args,
+    **kwargs,
+):
+    """
+    Prepares the model for gradient sample computation.
+
+    Args:
+        model: The nn.Module to prepare
+        grad_sample_mode: The gradient sampling mode
+        wrap_model: If True (default), wraps in a GradSampleModule subclass.
+            If False, attaches hooks without wrapping in a Module.
+
+    Returns:
+        Union[AbstractGradSampleModule, GradSampleHooks]: Wrapped module or hooks object
+    """
     if grad_sample_mode == "functorch":
         kwargs["force_functorch"] = True
+
+    if wrap_model:
+        cls = get_gsm_class(grad_sample_mode)
+    else:
+        cls = get_hooks_class(grad_sample_mode)
+
     return cls(model, *args, **kwargs)
+
+
+# Backward compatibility alias
+def wrap_model(
+    model: nn.Module,
+    grad_sample_mode: str,
+    wrap_model: bool = True,
+    *args,
+    **kwargs,
+):
+    """
+    Legacy alias for prepare_module(). Use prepare_module() in new code.
+    """
+    return prepare_module(model, grad_sample_mode, wrap_model, *args, **kwargs)
 
 
 def get_gsm_class(grad_sample_mode: str) -> Type[AbstractGradSampleModule]:
@@ -113,4 +155,29 @@ def get_gsm_class(grad_sample_mode: str) -> Type[AbstractGradSampleModule]:
         raise ValueError(
             f"Unexpected grad_sample_mode: {grad_sample_mode}. "
             f"Allowed values: hooks, ew"
+        )
+
+
+def get_hooks_class(grad_sample_mode: str):
+    """
+    Returns Hooks subclass corresponding to the input mode.
+    See README for a detailed comparison between grad sample modes.
+
+    :param grad_sample_mode:
+    :return:
+    """
+    if grad_sample_mode in ["hooks", "functorch"]:
+        return GradSampleHooks
+    elif grad_sample_mode == "ghost":
+        return GradSampleHooksFastGradientClipping
+    elif grad_sample_mode == "ghost_fsdp":
+        return GradSampleHooksFastGradientClippingFSDP
+    elif grad_sample_mode == "ghost_tp":
+        return GradSampleHooksFastGradientClippingTP
+    elif grad_sample_mode == "no_op":
+        return GradSampleHooksNoOp
+    else:
+        raise ValueError(
+            f"Unexpected grad_sample_mode: {grad_sample_mode}. "
+            f"Hooks-based approach supports: hooks, functorch, ghost, ghost_fsdp, ghost_tp, no_op"
         )

@@ -13,8 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Union
+
 import torch
-from opacus.grad_sample.grad_sample_module_fast_gradient_clipping import (
+from opacus.grad_sample import (
+    GradSampleHooksFastGradientClipping,
     GradSampleModuleFastGradientClipping,
 )
 from opacus.optimizers import DPOptimizerFastGradientClipping
@@ -27,14 +30,16 @@ class DPTensorFastGradientClipping:
 
     def __init__(
         self,
-        module: GradSampleModuleFastGradientClipping,
+        module: Union[
+            GradSampleModuleFastGradientClipping, GradSampleHooksFastGradientClipping
+        ],
         optimizer: DPOptimizerFastGradientClipping,
         loss_per_sample: torch.Tensor,
         loss_reduction: str = "mean",
     ):
         """
         Args:
-            module: the module to train
+            module: the (GradSample) module to train or hooks handling object
             optimizer: the optimizer used to train the module
             loss_per_sample: loss on each sample in the mini-batch of size [batch_size, 1]
         """
@@ -203,7 +208,9 @@ class DPLossFastGradientClipping:
 
     def __init__(
         self,
-        module: GradSampleModuleFastGradientClipping,
+        module: Union[
+            GradSampleModuleFastGradientClipping, GradSampleHooksFastGradientClipping
+        ],
         optimizer: DPOptimizerFastGradientClipping,
         criterion,
         loss_reduction: str = "mean",

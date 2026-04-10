@@ -515,7 +515,8 @@ class GradSampleModuleFastGradientClippingEmbeddingLayerTest(unittest.TestCase):
                 raise
 
         self.assertTrue(
-            success, "get_clipping_coef should handle multi-device parameters"
+            success,
+            "get_clipping_coef should handle multi-device parameters",
         )
         self.assertEqual(clipping_coef.shape[0], batch_size)
         # Verify clipping coefficients are correct

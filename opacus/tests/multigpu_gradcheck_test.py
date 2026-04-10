@@ -110,7 +110,9 @@ def run_ghost_clipping_test(
     cleanup()
 
 
-def demo_basic(rank, weight, world_size, dp, clipping, grad_sample_mode):
+def demo_basic(
+    rank, weight, world_size, dp, clipping, grad_sample_mode, wrap_model=True
+):
     torch.manual_seed(world_size)
     batch_size = 2
     setup(rank, world_size)
@@ -129,7 +131,7 @@ def demo_basic(rank, weight, world_size, dp, clipping, grad_sample_mode):
 
     max_grad_norm = 1e8
 
-    if dp and clipping == "flat":
+    if dp and clipping == "flat" and wrap_model:
         ddp_model = DPDDP(model)
     else:
         ddp_model = DDP(model, device_ids=[rank])
@@ -151,7 +153,7 @@ def demo_basic(rank, weight, world_size, dp, clipping, grad_sample_mode):
     if dp:
         if clipping == "per_layer":
             max_grad_norm = [max_grad_norm for _ in model.parameters()]
-        ddp_model, optimizer, data_loader = privacy_engine.make_private(
+        hooks_or_gs_module, optimizer, data_loader = privacy_engine.make_private(
             module=ddp_model,
             optimizer=optimizer,
             data_loader=data_loader,
@@ -160,7 +162,11 @@ def demo_basic(rank, weight, world_size, dp, clipping, grad_sample_mode):
             poisson_sampling=False,
             clipping=clipping,
             grad_sample_mode=grad_sample_mode,
+            wrap_model=wrap_model,
         )
+        if wrap_model:
+            ddp_model = hooks_or_gs_module
+
         if clipping == "per_layer":
             assert isinstance(optimizer, SimpleDistributedPerLayerOptimizer)
         else:
@@ -178,10 +184,12 @@ def demo_basic(rank, weight, world_size, dp, clipping, grad_sample_mode):
     cleanup()
 
 
-def run_demo(demo_fn, weight, world_size, dp, clipping, grad_sample_mode):
+def run_demo(
+    demo_fn, weight, world_size, dp, clipping, grad_sample_mode, wrap_model=True
+):
     mp.spawn(
         demo_fn,
-        args=(weight, world_size, dp, clipping, grad_sample_mode),
+        args=(weight, world_size, dp, clipping, grad_sample_mode, wrap_model),
         nprocs=world_size,
         join=True,
     )
@@ -202,26 +210,36 @@ class GradientComputationTest(unittest.TestCase):
         clipping_grad_sample_pairs.append(("ghost", "ghost"))
 
         for clipping, grad_sample_mode in clipping_grad_sample_pairs:
+            for wrap_model in [True, False]:
+                if not wrap_model and grad_sample_mode == "ew":
+                    continue
 
-            weight_dp, weight_nodp = torch.zeros(10, 10), torch.zeros(10, 10)
+                with self.subTest(
+                    clipping=clipping,
+                    grad_sample_mode=grad_sample_mode,
+                    wrap_model=wrap_model,
+                ):
+                    weight_dp, weight_nodp = torch.zeros(10, 10), torch.zeros(10, 10)
 
-            run_demo(
-                demo_basic,
-                weight_dp,
-                2,
-                dp=True,
-                clipping=clipping,
-                grad_sample_mode=grad_sample_mode,
-            )
-            run_demo(
-                demo_basic,
-                weight_nodp,
-                2,
-                dp=False,
-                clipping=None,
-                grad_sample_mode=None,
-            )
+                    run_demo(
+                        demo_basic,
+                        weight_dp,
+                        2,
+                        dp=True,
+                        clipping=clipping,
+                        grad_sample_mode=grad_sample_mode,
+                        wrap_model=wrap_model,
+                    )
+                    run_demo(
+                        demo_basic,
+                        weight_nodp,
+                        2,
+                        dp=False,
+                        clipping=None,
+                        grad_sample_mode=None,
+                        wrap_model=wrap_model,
+                    )
 
-            self.assertTrue(
-                torch.allclose(weight_dp, weight_nodp, atol=1e-5, rtol=1e-3)
-            )
+                    self.assertTrue(
+                        torch.allclose(weight_dp, weight_nodp, atol=1e-5, rtol=1e-3)
+                    )
