@@ -14,7 +14,7 @@
 # limitations under the License.
 
 import io
-from typing import Callable, Dict, Iterable, List, Union
+from typing import Any, Callable, Dict, Iterable, List, Union
 
 import numpy as np
 import torch
@@ -284,6 +284,187 @@ def check_per_sample_gradients_are_correct(
             return False
 
     return True
+
+
+def get_per_sample_gradient_diagnostics(
+    x: Union[torch.Tensor, PackedSequence],
+    module: nn.Module,
+    *,
+    batch_first: bool = True,
+    atol: float = 10e-6,
+    rtol: float = 10e-5,
+    grad_sample_mode: str = "hooks",
+) -> Dict[str, Any]:
+    """
+    Computes detailed diagnostics for per-sample gradient correctness.
+
+    This utility helps users verify that Opacus computes per-sample gradients
+    correctly for their specific model. It compares the result of the slow but
+    reliable micro-batch method (computing gradients one sample at a time) with
+    Opacus's optimized method, and returns a detailed report for each trainable
+    parameter.
+
+    This is particularly useful when:
+    - Implementing custom ``grad_samplers`` for new layer types.
+    - Using ``functorch``-based gradient computation with complex architectures.
+    - Validating that a model's per-sample gradients are correct before
+      deploying it for privacy-sensitive training.
+
+    Args:
+        x: Sample input batch to run through the model.
+        module: The ``nn.Module`` to check. Should be the raw model
+            (not wrapped with ``GradSampleModule``).
+        batch_first: Whether batch size is the first dimension (as opposed
+            to the second). Defaults to True.
+        atol: The absolute tolerance parameter for ``torch.allclose``.
+            Defaults to 10e-6.
+        rtol: The relative tolerance parameter for ``torch.allclose``.
+            Defaults to 10e-5.
+        grad_sample_mode: The Opacus grad sample mode to use.
+            One of ``"hooks"``, ``"functorch"``, or ``"ew"``.
+            Defaults to ``"hooks"``.
+
+    Returns:
+        A dictionary with the following structure::
+
+            {
+                "passed": bool,  # True if all parameters pass for all reductions
+                "num_parameters": int,
+                "reductions": {
+                    "mean": {
+                        "passed": bool,
+                        "parameters": {
+                            "<param_name>": {
+                                "passed": bool,
+                                "shape_match": bool,
+                                "opacus_shape": tuple,
+                                "microbatch_shape": tuple,
+                                "opacus_l2_norm": float,
+                                "microbatch_l2_norm": float,
+                                "mse": float,  # Mean Squared Error
+                                "l1_loss": float,  # Mean Absolute Error
+                            },
+                            ...
+                        }
+                    },
+                    "sum": { ... }  # same structure as "mean"
+                }
+            }
+
+    Raises:
+        RuntimeError: If ``grad_sample_mode="ew"`` and ``batch_first`` is False
+            or the torch version is incompatible.
+        RuntimeError: If the input batch ``x`` is empty.
+
+    Example:
+        >>> import torch
+        >>> import torch.nn as nn
+        >>> from opacus.utils.per_sample_gradients_utils import (
+        ...     get_per_sample_gradient_diagnostics,
+        ... )
+        >>> model = nn.Linear(10, 5)
+        >>> x = torch.randn(4, 10)
+        >>> report = get_per_sample_gradient_diagnostics(x, model)
+        >>> report["passed"]
+        True
+    """
+    reductions = ["sum", "mean"]
+    if grad_sample_mode == "ew":
+        if not batch_first:
+            raise RuntimeError("Batch should be first dimension.")
+        if not check_torch_version_for_ew_sample():
+            raise RuntimeError(f"Unsupported torch version: {torch.__version__}.")
+
+    all_passed = True
+    reduction_results: Dict[str, Any] = {}
+
+    for loss_reduction in reductions:
+        reduction_report = _get_diagnostics_for_reduction(
+            x,
+            module,
+            batch_first=batch_first,
+            loss_reduction=loss_reduction,
+            atol=atol,
+            rtol=rtol,
+            grad_sample_mode=grad_sample_mode,
+        )
+        if not reduction_report["passed"]:
+            all_passed = False
+        reduction_results[loss_reduction] = reduction_report
+
+    return {
+        "passed": all_passed,
+        "num_parameters": len(next(iter(reduction_results.values()))["parameters"]),
+        "reductions": reduction_results,
+    }
+
+
+def _get_diagnostics_for_reduction(
+    x: Union[torch.Tensor, PackedSequence],
+    module: nn.Module,
+    batch_first: bool = True,
+    loss_reduction: str = "mean",
+    atol: float = 10e-6,
+    rtol: float = 10e-5,
+    grad_sample_mode: str = "hooks",
+) -> Dict[str, Any]:
+    """
+    Internal helper: computes per-parameter diagnostics for a single
+    loss reduction mode (``"mean"`` or ``"sum"``).
+    """
+    (
+        microbatch_grad_samples,
+        opacus_grad_samples,
+    ) = compute_grad_samples_microbatch_and_opacus(
+        x,
+        module,
+        batch_first=batch_first,
+        loss_reduction=loss_reduction,
+        grad_sample_mode=grad_sample_mode,
+    )
+
+    all_passed = True
+    parameters: Dict[str, Dict[str, Any]] = {}
+
+    for name, opacus_grad_sample in opacus_grad_samples.items():
+        microbatch_grad_sample = microbatch_grad_samples[name]
+
+        shape_match = opacus_grad_sample.shape == microbatch_grad_sample.shape
+
+        if shape_match:
+            values_close = bool(
+                torch.allclose(microbatch_grad_sample, opacus_grad_sample, atol, rtol)
+            )
+            mse = float(
+                torch.nn.functional.mse_loss(opacus_grad_sample, microbatch_grad_sample)
+            )
+            l1_loss = float(
+                torch.nn.functional.l1_loss(opacus_grad_sample, microbatch_grad_sample)
+            )
+        else:
+            values_close = False
+            mse = float("inf")
+            l1_loss = float("inf")
+
+        param_passed = shape_match and values_close
+        if not param_passed:
+            all_passed = False
+
+        parameters[name] = {
+            "passed": param_passed,
+            "shape_match": shape_match,
+            "opacus_shape": tuple(opacus_grad_sample.shape),
+            "microbatch_shape": tuple(microbatch_grad_sample.shape),
+            "opacus_l2_norm": float(opacus_grad_sample.norm(2)),
+            "microbatch_l2_norm": float(microbatch_grad_sample.norm(2)),
+            "mse": mse,
+            "l1_loss": l1_loss,
+        }
+
+    return {
+        "passed": all_passed,
+        "parameters": parameters,
+    }
 
 
 def compute_microbatch_grad_sample_tensor_or_seq(
