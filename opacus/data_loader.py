@@ -329,7 +329,6 @@
 #                 empty batches rather than tensors with zero-length batch dimensions
 
 
-
 #         Returns:
 #             New DPDataLoader instance, with all attributes and parameters inherited
 #             from the original data loader, except for sampling mechanism.
@@ -444,7 +443,6 @@ from opacus.utils.uniform_sampler import (
 from torch.utils.data import BatchSampler, DataLoader, Dataset, IterableDataset, Sampler
 from torch.utils.data._utils.collate import default_collate
 from torch.utils.data.dataloader import _collate_fn_t
-
 
 logger = logging.getLogger(__name__)
 
@@ -748,7 +746,12 @@ class DPDataLoader(DataLoader):
 
         return cls(
             dataset=data_loader.dataset,
-            sample_rate=(data_loader.batch_size if data_loader.batch_size is not None else data_loader.batch_sampler.batch_size) / len(data_loader.dataset),
+            sample_rate=(
+                data_loader.batch_size
+                if data_loader.batch_size is not None
+                else data_loader.batch_sampler.batch_size
+            )
+            / len(data_loader.dataset),
             num_workers=data_loader.num_workers,
             collate_fn=data_loader.collate_fn,
             pin_memory=data_loader.pin_memory,

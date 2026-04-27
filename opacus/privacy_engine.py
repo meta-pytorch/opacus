@@ -16,8 +16,8 @@
 # from itertools import chain
 # from typing import IO, Any, BinaryIO, Dict, List, Optional, Tuple, Union
 
-# import sys  
-# import os 
+# import sys
+# import os
 # project_root = os.path.dirname(os.path.abspath(__file__))
 
 # # Insert it at the beginning of the path list
@@ -329,7 +329,7 @@
 #         grad_sample_mode: str = "hooks",
 #         wrap_model: bool = True,
 #         rand_on_empty: bool = False,
-#         metadata_epsilon: Optional[float] = None, 
+#         metadata_epsilon: Optional[float] = None,
 #         **kwargs,
 #     ) -> Union[
 #         Tuple[
@@ -450,7 +450,7 @@
 
 #         # 1. Capture the true dataset size
 #         true_n = len(data_loader.dataset)
-        
+
 #         # 2. Apply Laplace Noise if epsilon is provided
 #         if metadata_epsilon is not None:
 #             import numpy as np
@@ -471,11 +471,11 @@
 
 #         # 1. Try to find batch_size through standard methods
 #         batch_size = getattr(data_loader, "batch_size", None)
-        
+
 #         # 2. If it's a BatchSampler (like standard PyTorch)
 #         if batch_size is None and hasattr(data_loader, "batch_sampler"):
 #             batch_size = getattr(data_loader.batch_sampler, "batch_size", None)
-            
+
 #         # 3. If it's Opacus's UniformWithReplacementSampler (where sample_rate is the truth)
 #         if batch_size is None and hasattr(data_loader, "generator"):
 #             # For these samplers, batch_size is derived from sample_rate * total_n
@@ -491,7 +491,7 @@
 #             sample_rate = batch_size / true_n
 
 #         expected_batch_size = int(effective_n * sample_rate)
-        
+
 #         # sample_rate = batch_size / true_n
 #         # expected_batch_size = int(effective_n * sample_rate)
 #         # expected_batch_size = int(effective_n * sample_rate)
@@ -504,9 +504,9 @@
 #         m_eps = kwargs.get("metadata_epsilon", None)
 #         print(f"\nDEBUG >> All Kwargs: {kwargs.keys()}")
 
-    
+
 #         print(f"DEBUG >> Extracted metadata_epsilon: {m_eps}")
-        
+
 #         if m_eps is not None:
 #             import numpy as np
 #             # We use m_eps here
@@ -515,13 +515,13 @@
 #         else:
 #             effective_n = true_n
 
-        
+
 #         metadata_epsilon = kwargs.get("metadata_epsilon", None)
 
 
 #         if metadata_epsilon is not None:
 #             import numpy as np
-#             # The sensitivity of a count is 1. 
+#             # The sensitivity of a count is 1.
 #             # We add Laplace noise to hide the exact number of participants.
 #             noise = np.random.laplace(0, 1.0 / metadata_epsilon)
 #             effective_n = max(1, true_n + noise)
@@ -534,19 +534,17 @@
 #                 f"Metadata Privacy enabled. Actual N: {true_n}, "
 #                 f"Noisy N for accounting: {effective_n:.2f}"
 #             )
-            
+
 #         else:
 #             effective_n = true_n
-
 
 
 #         # if m_eps is not None:
 #         #     import numpy as np
 #         #     # FORCE a massive change to see if it works
-#         #     noise = 500  
+#         #     noise = 500
 #         #     effective_n = true_n + noise
 #         #     print(f"\n>>> DEBUG: FORCING NOISY N: {effective_n} <<<")
-
 
 
 #         # sample_rate = 1 / len(data_loader)
@@ -566,7 +564,7 @@
 #             sample_rate = batch_size / len(data_loader.dataset)
 #         else:
 #             sample_rate = 1 / len(data_loader)
-            
+
 #             expected_batch_size = int(len(data_loader.dataset) * sample_rate)
 
 #         # expected_batch_size is the *per worker* batch size
@@ -623,7 +621,7 @@
 #         wrap_model: bool = True,
 #         metadata_epsilon: float = None,
 #         **kwargs,
-       
+
 #     ) -> Union[
 #         Tuple[
 #             Union[AbstractGradSampleModule, GradSampleHooks], DPOptimizer, DataLoader
@@ -826,7 +824,7 @@
 #             grad_clip_scheduler.load_state_dict(grad_clip_scheduler_state_dict)
 
 #         return checkpoint
-        
+
 #         # print(f"SYSTEM CHECK: Calculating Noisy N for epsilon {metadata_epsilon}")
 
 
@@ -1383,7 +1381,7 @@ class PrivacyEngine:
         batch_size = data_loader.batch_size
         if batch_size is None:
             # Fallback to infer from batch_sampler
-            batch_size = getattr(data_loader.batch_sampler, 'batch_size', 1)
+            batch_size = getattr(data_loader.batch_sampler, "batch_size", 1)
         sample_rate = batch_size / len(data_loader.dataset)
 
         if isinstance(data_loader.sampler, WeightedRandomSampler):
