@@ -1,5 +1,30 @@
 # Changelog
 
+## v1.6.0
+
+### New features
+
+#### Better interoperability with modern training stacks
+* Add non-wrapping mode for better compatibility with Transformers, Accelerate, and libraries that expect the original module hierarchy (`wrap_model=False`) (#794)
+* Add arithmetic operations support to `DPTensorFastGradientClipping`, making it easier to integrate Opacus with custom loss compositions and external trainers (#805)
+
+#### Distributed and large-model training
+* Add support for Fully Sharded Data Parallel (FSDP) training, including a tutorial and a new example (#761,#772,#781,#782)
+* Add support for mixed and low precision training (#764)
+* Add 1D tensor parallelism support for fast gradient clipping, together with toy and Llama examples; this support is currently beta (#776)
+
+#### Others
+* Add ability to register custom noise accountants (#784)
+
+### Bug fixes
+* Fix epsilon/noise accounting when using adaptive gradient clipping  (#807, #779)
+* Fix fast gradient clipping when using `ignore_index` masking, so ignored tokens do not affect the reduced loss incorrectly (#808)
+* Replace empty-batch handling inside `DPDataLoader` with a structure-aware approach, fixing failures for custom batch structures under Poisson sampling (#806)
+* Treat `IAccountant.mechanism` correctly during `state_dict` handling (#778)
+
+### Compatibility
+* Require `torch>=2.6.0` (#770)
+
 ## v1.5.4
 
 ### New features
