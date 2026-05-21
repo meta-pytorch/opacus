@@ -16,7 +16,10 @@
 """
 Runs DCGAN training with differential privacy.
 
+NOTE: As of this commit, DC-GAN example uses a single combined backward pass
+to avoid double-charging the privacy budget.  (Closes #418)
 """
+
 from __future__ import print_function
 
 import argparse
