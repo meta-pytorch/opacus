@@ -13,13 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .per_sample_gradients_utils import (
-    check_per_sample_gradients_are_correct,
-    get_per_sample_gradient_diagnostics,
-)
+from .per_sample_gradients_utils import get_per_sample_gradient_diagnostics
 
 
 __all__ = [
-    "check_per_sample_gradients_are_correct",
     "get_per_sample_gradient_diagnostics",
 ]

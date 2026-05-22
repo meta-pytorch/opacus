@@ -155,9 +155,6 @@ else:
             print(f"FAIL {name}: MSE={p['mse']:.2e}, L1={p['l1_loss']:.2e}")
 ```
 
-The simpler `check_per_sample_gradients_are_correct` function is also available
-if you only need a boolean pass/fail result.
-
 ## Contributing
 
 See the

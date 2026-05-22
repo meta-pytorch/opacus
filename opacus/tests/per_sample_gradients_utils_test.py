@@ -15,12 +15,14 @@
 
 import unittest
 from typing import Callable
+from unittest.mock import patch
 
 import hypothesis.strategies as st
 import torch
 from hypothesis import given, settings
 from opacus.utils.per_sample_gradients_utils import (
     check_per_sample_gradients_are_correct,
+    compute_opacus_grad_sample,
     get_grad_sample_modes,
     get_per_sample_gradient_diagnostics,
 )
@@ -218,11 +220,33 @@ class DiagnosticsUtilsTest(unittest.TestCase):
     def test_public_import_path(self):
         """Verify the public import from opacus.utils works."""
         from opacus.utils import (
-            check_per_sample_gradients_are_correct as check_fn,
-        )
-        from opacus.utils import (
             get_per_sample_gradient_diagnostics as diag_fn,
         )
 
-        self.assertTrue(callable(check_fn))
         self.assertTrue(callable(diag_fn))
+
+    def test_diagnostics_reports_mismatch(self):
+        """Verify the diagnostics report flags failure when per-sample gradients
+        do not match the micro-batch reference."""
+        model = nn.Linear(10, 5, bias=True)
+        x = torch.randn(4, 10)
+
+        def perturbed_compute_opacus_grad_sample(*args, **kwargs):
+            result = compute_opacus_grad_sample(*args, **kwargs)
+            return {name: g + 1.0 for name, g in result.items()}
+
+        with patch(
+            "opacus.utils.per_sample_gradients_utils.compute_opacus_grad_sample",
+            side_effect=perturbed_compute_opacus_grad_sample,
+        ):
+            report = get_per_sample_gradient_diagnostics(x, model)
+
+        self.assertFalse(report["passed"])
+        for reduction in ["sum", "mean"]:
+            red_report = report["reductions"][reduction]
+            self.assertFalse(red_report["passed"])
+            for param_report in red_report["parameters"].values():
+                self.assertFalse(param_report["passed"])
+                self.assertTrue(param_report["shape_match"])
+                self.assertGreater(param_report["mse"], 0.0)
+                self.assertGreater(param_report["l1_loss"], 0.0)
