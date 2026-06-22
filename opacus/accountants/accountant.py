@@ -51,7 +51,6 @@ class IAccountant(abc.ABC):
         """
         pass
 
-
     @classmethod
     @abc.abstractmethod
     def mechanism(cls) -> str:
@@ -59,6 +58,7 @@ class IAccountant(abc.ABC):
         Accounting mechanism name
         """
         pass
+
 
     def __len__(self) -> int:
         """
