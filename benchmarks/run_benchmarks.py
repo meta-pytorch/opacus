@@ -19,9 +19,9 @@ import logging
 from os.path import exists
 from typing import Any, Dict
 
-from benchmarks.benchmark_layer import run_layer_benchmark
-from benchmarks.layers import LayerType
-from benchmarks.utils import get_layer_set, get_path, save_results
+from benchmark.benchmark_layer import run_layer_benchmark
+from benchmark.layers import LayerType
+from benchmark.utils import get_layer_set, get_path, save_results
 
 
 logger = logging.getLogger(__name__)

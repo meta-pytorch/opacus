@@ -129,6 +129,30 @@ class AccountingTest(unittest.TestCase):
         epsilon = accountant.get_epsilon(delta=1e-5)
         self.assertAlmostEqual(epsilon, 6.777395712150674)
 
+    def test_len_counts_optimization_steps(self) -> None:
+        noise_multiplier = 1.5
+        sample_rate = 0.04
+        steps = 50
+
+        for accountant in (RDPAccountant(), GaussianAccountant(), PRVAccountant()):
+            for _ in range(steps):
+                accountant.step(
+                    noise_multiplier=noise_multiplier, sample_rate=sample_rate
+                )
+            self.assertEqual(len(accountant.history), 1)
+            self.assertEqual(len(accountant), steps)
+
+        for accountant in (RDPAccountant(), PRVAccountant()):
+            for _ in range(steps):
+                accountant.step(
+                    noise_multiplier=noise_multiplier, sample_rate=sample_rate
+                )
+            accountant.step(
+                noise_multiplier=noise_multiplier * 2, sample_rate=sample_rate
+            )
+            self.assertEqual(len(accountant.history), 2)
+            self.assertEqual(len(accountant), steps + 1)
+
     def test_get_noise_multiplier_rdp_epochs(self) -> None:
         delta = 1e-5
         sample_rate = 0.04
