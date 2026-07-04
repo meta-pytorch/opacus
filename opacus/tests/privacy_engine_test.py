@@ -738,7 +738,6 @@ class BasePrivacyEngineTest(ABC):
             secure_mode=secure_mode,
         )
 
-    @unittest.skip("requires torchcsprng compatible with new pytorch versions")
     @patch("torch.normal", MagicMock(return_value=torch.Tensor([0.6])))
     def test_generate_noise_in_secure_mode(self) -> None:
         """
