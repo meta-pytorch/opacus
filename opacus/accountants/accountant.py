@@ -19,7 +19,6 @@ from typing import Any, Callable, Mapping, TypeVar
 
 from opacus.optimizers import DPOptimizer
 
-
 T_state_dict = TypeVar("T_state_dict", bound=Mapping[str, Any])
 
 
@@ -58,7 +57,6 @@ class IAccountant(abc.ABC):
         Accounting mechanism name
         """
         pass
-
 
     def __len__(self) -> int:
         """
