@@ -55,7 +55,7 @@ max grad norm limit (<code class="docutils literal notranslate"><span class="pre
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>optimizer</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/optim.html#torch.optim.Optimizer" title="(in PyTorch v2.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Optimizer</span></code></a></span>) – wrapped optimizer.</p></li>
+<li><p><strong>optimizer</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/optim.html#torch.optim.Optimizer" title="(in PyTorch v2.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Optimizer</span></code></a></span>) – wrapped optimizer.</p></li>
 <li><p><strong>noise_multiplier</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a></span>) – noise multiplier</p></li>
 <li><p><strong>max_grad_norm</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a></span>) – max grad norm used for gradient clipping</p></li>
 <li><p><strong>expected_batch_size</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>]</span>) – batch_size used for averaging gradients. When using
@@ -111,7 +111,7 @@ Stores clipped and aggregated gradients into <cite>p.summed_grad``</cite></p>
 </dd></dl>
 <dl class="py property">
 <dt class="sig sig-object py" id="opacus.optimizers.optimizer.DPOptimizer.grad_samples">
-<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">grad_samples</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.12)"><span class="pre">Tensor</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#opacus.optimizers.optimizer.DPOptimizer.grad_samples" title="Link to this definition">¶</a></dt>
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">grad_samples</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">Tensor</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#opacus.optimizers.optimizer.DPOptimizer.grad_samples" title="Link to this definition">¶</a></dt>
 <dd><p>Returns a flat list of per sample gradient tensors (one per parameter)</p>
 </dd></dl>
 <dl class="py method">
@@ -129,7 +129,7 @@ from a call to <a class="reference internal" href="#opacus.optimizers.optimizer.
 </dl>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Make sure this method is called after initializing <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.LRScheduler.html#torch.optim.lr_scheduler.LRScheduler" title="(in PyTorch v2.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.optim.lr_scheduler.LRScheduler</span></code></a>,
+<p>Make sure this method is called after initializing <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.LRScheduler.html#torch.optim.lr_scheduler.LRScheduler" title="(in PyTorch v2.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.optim.lr_scheduler.LRScheduler</span></code></a>,
 as calling it beforehand will overwrite the loaded learning rates.</p>
 </div>
 <div class="admonition note">
@@ -146,27 +146,26 @@ the optimizer <code class="docutils literal notranslate"><span class="pre">param
 </div>
 <p class="rubric">Example</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># xdoctest: +SKIP</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">optim</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">SGD</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=</span><span class="mf">3e-4</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">optimizer</span> <span class="o">=</span> <span class="o">...</span>  <span class="c1"># initialized optimizer matching the saved state</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">scheduler1</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">lr_scheduler</span><span class="o">.</span><span class="n">LinearLR</span><span class="p">(</span>
-<span class="gp">... </span>    <span class="n">optim</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">optimizer</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">start_factor</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">end_factor</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">total_iters</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
 <span class="gp">... </span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">scheduler2</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">lr_scheduler</span><span class="o">.</span><span class="n">CosineAnnealingLR</span><span class="p">(</span>
-<span class="gp">... </span>    <span class="n">optim</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">optimizer</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">T_max</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">eta_min</span><span class="o">=</span><span class="mf">3e-5</span><span class="p">,</span>
 <span class="gp">... </span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">lr</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">lr_scheduler</span><span class="o">.</span><span class="n">SequentialLR</span><span class="p">(</span>
-<span class="gp">... </span>    <span class="n">optim</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">optimizer</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">schedulers</span><span class="o">=</span><span class="p">[</span><span class="n">scheduler1</span><span class="p">,</span> <span class="n">scheduler2</span><span class="p">],</span>
 <span class="gp">... </span>    <span class="n">milestones</span><span class="o">=</span><span class="p">[</span><span class="mi">20</span><span class="p">],</span>
 <span class="gp">... </span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">lr</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">"./save_seq.pt"</span><span class="p">))</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="c1"># now load the optimizer checkpoint after loading the LRScheduler</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">optim</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">"./save_optim.pt"</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">optimizer</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">"./save_optim.pt"</span><span class="p">))</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -177,7 +176,7 @@ the optimizer <code class="docutils literal notranslate"><span class="pre">param
 </dd></dl>
 <dl class="py property">
 <dt class="sig sig-object py" id="opacus.optimizers.optimizer.DPOptimizer.params">
-<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">params</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.parameter.Parameter.html#torch.nn.parameter.Parameter" title="(in PyTorch v2.12)"><span class="pre">Parameter</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#opacus.optimizers.optimizer.DPOptimizer.params" title="Link to this definition">¶</a></dt>
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">params</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.parameter.Parameter.html#torch.nn.parameter.Parameter" title="(in PyTorch v2.13)"><span class="pre">Parameter</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#opacus.optimizers.optimizer.DPOptimizer.params" title="Link to this definition">¶</a></dt>
 <dd><p>Returns a flat list of <code class="docutils literal notranslate"><span class="pre">nn.Parameter</span></code> managed by the optimizer</p>
 </dd></dl>
 <dl class="py method">

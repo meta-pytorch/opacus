@@ -86,13 +86,6 @@
         <span class="k">pass</span></div>
 
 
-    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""</span>
-<span class="sd">        Number of optimization steps taken so far</span>
-<span class="sd">        """</span>
-        <span class="k">pass</span>
-
 <div class="viewcode-block" id="IAccountant.mechanism">
 <a class="viewcode-back" href="../../../accounting/iaccountant.html#opacus.accountants.accountant.IAccountant.mechanism">[docs]</a>
     <span class="nd">@classmethod</span>
@@ -103,6 +96,12 @@
 <span class="sd">        """</span>
         <span class="k">pass</span></div>
 
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Number of optimization steps taken so far</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">num_steps</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">num_steps</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">)</span>
 
 <div class="viewcode-block" id="IAccountant.get_optimizer_hook_fn">
 <a class="viewcode-back" href="../../../accounting/iaccountant.html#opacus.accountants.accountant.IAccountant.get_optimizer_hook_fn">[docs]</a>
