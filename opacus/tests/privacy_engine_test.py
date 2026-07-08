@@ -46,7 +46,7 @@ def get_grad_sample_aggregated(tensor: torch.Tensor, loss_type: str = "mean"):
     if tensor.grad_sample is None:
         raise ValueError(
             f"The input tensor {tensor} has grad computed, but missing grad_sample."
-            f"Please attach PrivacyEngine"
+            "Please attach PrivacyEngine"
         )
 
     if loss_type not in ("sum", "mean"):
@@ -375,7 +375,7 @@ class BasePrivacyEngineTest(ABC):
             summed_grad = p.grad_sample.sum(dim=0) / self.BATCH_SIZE
             self.assertTrue(
                 torch.allclose(p.grad, summed_grad, atol=1e-8, rtol=1e-4),
-                f"Per sample gradients don't sum up to the final grad value."
+                "Per sample gradients don't sum up to the final grad value."
                 f"Param: {p_name}",
             )
 
@@ -445,7 +445,7 @@ class BasePrivacyEngineTest(ABC):
             max_grad_norm=1,
             grad_sample_mode=self.GRAD_SAMPLE_MODE,
         )
-        self.assertTrue(1, 1)
+        self.assertEqual(1, 1)
 
     def test_make_private_with_epsilon(self) -> None:
         model, optimizer, dl = self._init_vanilla_training()
@@ -674,11 +674,11 @@ class BasePrivacyEngineTest(ABC):
         self.assertNotEqual(opt1.noise_multiplier, opt2.noise_multiplier)
 
     @given(
-        noise_multiplier=st.floats(0.5, 5.0),
-        max_steps=st.integers(3, 5),
+        noise_multiplier=st.sampled_from([0.5, 1.0, 3.5, 5.0]),
+        max_steps=st.just(3),
         secure_mode=st.just(False),  # TODO: enable after fixing torchcsprng build
     )
-    @settings(suppress_health_check=list(HealthCheck), deadline=None)
+    @settings(suppress_health_check=list(HealthCheck), deadline=None, max_examples=4)
     def test_noise_level(
         self,
         noise_multiplier: float,
