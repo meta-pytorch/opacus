@@ -84,9 +84,6 @@ class RDPAccountant(IAccountant):
         eps, _ = self.get_privacy_spent(delta=delta, alphas=alphas)
         return eps
 
-    def __len__(self):
-        return len(self.history)
-
     @classmethod
     def mechanism(cls) -> str:
         return "rdp"

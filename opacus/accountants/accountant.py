@@ -51,13 +51,6 @@ class IAccountant(abc.ABC):
         """
         pass
 
-    @abc.abstractmethod
-    def __len__(self) -> int:
-        """
-        Number of optimization steps taken so far
-        """
-        pass
-
     @classmethod
     @abc.abstractmethod
     def mechanism(cls) -> str:
@@ -65,6 +58,12 @@ class IAccountant(abc.ABC):
         Accounting mechanism name
         """
         pass
+
+    def __len__(self) -> int:
+        """
+        Number of optimization steps taken so far
+        """
+        return sum(num_steps for _, _, num_steps in self.history)
 
     def get_optimizer_hook_fn(
         self, sample_rate: float

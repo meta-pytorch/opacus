@@ -67,9 +67,6 @@ class GaussianAccountant(IAccountant):
             delta=delta,
         )
 
-    def __len__(self):
-        return len(self.history)
-
     @classmethod
     def mechanism(cls) -> str:
         return "gdp"
