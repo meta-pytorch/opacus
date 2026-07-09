@@ -37,15 +37,19 @@ jobs:
     runs-on: 4-core-ubuntu-gpu-t4
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v5
 
       - name: Display Python version
         run: python3 -c "import sys; print(sys.version)"
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: '3.x'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            dev_requirements.txt
 
       - name: Install dependencies
         run: |
@@ -60,12 +64,16 @@ jobs:
     runs-on: 4-core-ubuntu-gpu-t4
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            dev_requirements.txt
 
       - name: Install dependencies
         run: |
