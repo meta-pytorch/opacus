@@ -23,7 +23,7 @@ enforce a common code style across the code base. black is installed easily via
 pip using `pip install black`, and run locally by calling
 ```bash
 black .
-flake8 --config ./.circleci/flake8_config.ini
+flake8 --config ./.github/workflows/flake8_config.ini
 ```
 from the repository root. No additional configuration should be needed (see the
 [black documentation](https://black.readthedocs.io/en/stable/installation_and_usage.html#usage)
