@@ -118,7 +118,9 @@ jobs:
       - name: Cache CIFAR10 dataset
         uses: actions/cache@v5
         with:
-          path: runs/cifar10/data
+          path: |
+            runs/cifar10/data
+            !runs/cifar10/data/cifar-10-python.tar.gz
           key: cifar10-dataset
 
       - name: Run CIFAR10 integration test (CUDA)
