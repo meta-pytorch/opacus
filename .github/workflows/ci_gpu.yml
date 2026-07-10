@@ -95,7 +95,9 @@ jobs:
       - name: Cache MNIST dataset
         uses: actions/cache@v5
         with:
-          path: runs/mnist/data
+          path: |
+            runs/mnist/data
+            !runs/mnist/data/MNIST/raw/*.gz
           key: mnist-dataset
 
       - name: Run MNIST integration test (CUDA)
