@@ -13,9 +13,11 @@
 # limitations under the License.
 
 import unittest
+import warnings
 
 import torch
 from opacus import PrivacyEngine
+from torch import nn
 from torch.utils.data import DataLoader
 
 from .utils import (
@@ -201,3 +203,57 @@ class PrivacyEngineValidationTest(unittest.TestCase):
 
         for x in dl:
             module(x)
+
+
+class ExpectedBatchSizeNormalizationWarningTest(unittest.TestCase):
+    """
+    This test case checks the warning emitted by `.make_private` when the
+    floor-based expected batch size used to normalize gradients differs
+    between neighbouring dataset sizes, i.e.
+    ``int(N * sample_rate) != int((N + 1) * sample_rate)``. In that case the
+    implemented mechanism may not match the Subsampled Gaussian Mechanism
+    assumed by the privacy accountant.
+    """
+
+    WARNING_REGEX = "floor-based expected batch size"
+
+    def _make_private(self, num_samples, batch_size, **kwargs):
+        module = nn.Linear(5, 2)
+        optim = torch.optim.SGD(module.parameters(), lr=0.1)
+        dl = DataLoader(
+            dataset=[torch.randn(5) for _ in range(num_samples)],
+            batch_size=batch_size,
+        )
+        return PrivacyEngine().make_private(
+            module=module,
+            optimizer=optim,
+            data_loader=dl,
+            noise_multiplier=1.0,
+            max_grad_norm=1.0,
+            **kwargs,
+        )
+
+    def _assert_no_normalization_warning(self, num_samples, batch_size, **kwargs):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self._make_private(num_samples=num_samples, batch_size=batch_size, **kwargs)
+        self.assertFalse(any(self.WARNING_REGEX in str(w.message) for w in caught))
+
+    def test_warns_when_normalizer_changes(self) -> None:
+        # sample_rate=1/20: int(199 * 0.05) = 9 != int(200 * 0.05) = 10
+        with self.assertWarnsRegex(UserWarning, self.WARNING_REGEX):
+            self._make_private(num_samples=199, batch_size=10)
+
+    def test_no_warning_when_normalizer_is_stable(self) -> None:
+        # sample_rate=1/10: int(100 * 0.1) = 10 == int(101 * 0.1) = 10
+        self._assert_no_normalization_warning(num_samples=100, batch_size=10)
+
+    def test_no_warning_with_sum_loss_reduction(self) -> None:
+        self._assert_no_normalization_warning(
+            num_samples=199, batch_size=10, loss_reduction="sum"
+        )
+
+    def test_no_warning_without_poisson_sampling(self) -> None:
+        self._assert_no_normalization_warning(
+            num_samples=199, batch_size=10, poisson_sampling=False
+        )
