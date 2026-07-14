@@ -369,6 +369,21 @@ class PrivacyEngine:
                 unchanged. Technically this doesn't fit the assumptions made by
                 privacy accounting mechanism, but it can be a good approximation when
                 using Poisson sampling is unfeasible.
+
+                Note: with Poisson sampling and ``loss_reduction="mean"``,
+                gradients are averaged over the *expected* batch size
+                ``int(N * sample_rate)`` rather than the realized batch size.
+                The privacy accountant analyzes the standard Subsampled
+                Gaussian Mechanism and does not model this normalization. If
+                the floor-based normalizer changes between neighbouring
+                dataset sizes (i.e. ``int(N * sample_rate) !=
+                int((N + 1) * sample_rate)``), the implemented mechanism may
+                not exactly match the accounted one and the reported privacy
+                guarantee can be weaker than stated, especially for small
+                datasets and high-dimensional model outputs. A warning is
+                emitted when this condition is detected. See
+                https://github.com/pytorch/opacus/issues/571 and
+                https://arxiv.org/abs/2605.15648 for details.
             clipping: Per sample gradient clipping mechanism ("flat" or "per_layer" or "adaptive").
                 Flat clipping calculates the norm of the entire gradient over
                 all parameters, per layer clipping sets individual norms for
@@ -439,6 +454,33 @@ class PrivacyEngine:
 
         sample_rate = 1 / len(data_loader)
         expected_batch_size = int(len(data_loader.dataset) * sample_rate)
+
+        if poisson_sampling and loss_reduction == "mean":
+            n = len(data_loader.dataset)
+            neighbouring_expected_batch_size = int((n + 1) * sample_rate)
+            if expected_batch_size != neighbouring_expected_batch_size:
+                warnings.warn(
+                    f"The floor-based expected batch size used to normalize "
+                    f"gradients differs between neighbouring datasets: "
+                    f"int({n} * {sample_rate}) = {expected_batch_size} vs "
+                    f"int({n + 1} * {sample_rate}) = "
+                    f"{neighbouring_expected_batch_size}. "
+                    f"With Poisson sampling and loss_reduction='mean', Opacus "
+                    f"averages gradients over the expected batch size "
+                    f"int(N * sample_rate), while the privacy accountant "
+                    f"analyzes the standard Subsampled Gaussian Mechanism, "
+                    f"which does not model this normalization. When the "
+                    f"normalizer changes between neighbouring datasets, the "
+                    f"implemented mechanism may not match the accounted one "
+                    f"and the reported (epsilon, delta) can underestimate the "
+                    f"actual privacy loss, especially for small datasets and "
+                    f"high-dimensional model outputs. Consider using "
+                    f"loss_reduction='sum' (and scaling the learning rate "
+                    f"accordingly) or adjusting the dataset size or sample "
+                    f"rate so that the normalizer is stable. See "
+                    f"https://github.com/pytorch/opacus/issues/571 and "
+                    f"https://arxiv.org/abs/2605.15648 for details."
+                )
 
         # expected_batch_size is the *per worker* batch size
         if distributed:
@@ -533,6 +575,21 @@ class PrivacyEngine:
                 unchanged. Technically this doesn't fit the assumptions made by
                 privacy accounting mechanism, but it can be a good approximation when
                 using Poisson sampling is unfeasible.
+
+                Note: with Poisson sampling and ``loss_reduction="mean"``,
+                gradients are averaged over the *expected* batch size
+                ``int(N * sample_rate)`` rather than the realized batch size.
+                The privacy accountant analyzes the standard Subsampled
+                Gaussian Mechanism and does not model this normalization. If
+                the floor-based normalizer changes between neighbouring
+                dataset sizes (i.e. ``int(N * sample_rate) !=
+                int((N + 1) * sample_rate)``), the implemented mechanism may
+                not exactly match the accounted one and the reported privacy
+                guarantee can be weaker than stated, especially for small
+                datasets and high-dimensional model outputs. A warning is
+                emitted when this condition is detected. See
+                https://github.com/pytorch/opacus/issues/571 and
+                https://arxiv.org/abs/2605.15648 for details.
             clipping: Per sample gradient clipping mechanism ("flat" or "per_layer" or "adaptive").
                 Flat clipping calculates the norm of the entire gradient over
                 all parameters, per layer clipping sets individual norms for
