@@ -113,6 +113,7 @@ class SlaClipDPOptimizer(DPOptimizer):
         secure_mode: bool = False,
         num_slots: Optional[int] = None,
         clipping_controller: Optional[Callable[[float, torch.Tensor], float]] = None,
+        **kwargs,
     ):
         if expected_batch_size is None or expected_batch_size <= 0:
             raise ValueError("expected_batch_size must be positive")
@@ -126,6 +127,7 @@ class SlaClipDPOptimizer(DPOptimizer):
             loss_reduction=loss_reduction,
             generator=generator,
             secure_mode=secure_mode,
+            **kwargs,
         )
 
         self.K = (

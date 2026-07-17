@@ -13,3 +13,6 @@
 # limitations under the License.
 
 """Research package for the SlaClip prototype."""
+
+from .privacy_engine import SlaClipPrivacyEngine  # noqa: F401
+from .slaclipoptimizer import SlaClipController, SlaClipDPOptimizer  # noqa: F401

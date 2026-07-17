@@ -17,15 +17,11 @@ import math
 import unittest
 
 import torch
-from opacus import PrivacyEngine
 from opacus.optimizers.optimizer import DPOptimizer
 from torch.utils.data import DataLoader, TensorDataset
 
-from research.slaclip.slaclipoptimizer import (
-    SlaClipController,
-    SlaClipDPOptimizer,
-    paper_recommended_k,
-)
+from research.slaclip import SlaClipController, SlaClipDPOptimizer, SlaClipPrivacyEngine
+from research.slaclip.slaclipoptimizer import paper_recommended_k
 
 
 def make_optimizer(
@@ -270,14 +266,17 @@ class SlaClipOptimizerResearchTest(unittest.TestCase):
 
         torch.testing.assert_close(optimizer.slack_indicator, torch.zeros(2))
 
-    def test_privacy_engine_records_one_joint_release(self):
+    def test_privacy_engine_entrypoint_records_one_joint_release(self):
         model = torch.nn.Linear(2, 1)
         base_optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
         data_loader = DataLoader(
             TensorDataset(torch.randn(8, 2), torch.randn(8, 1)), batch_size=4
         )
-        privacy_engine = PrivacyEngine()
-        model, private_optimizer, data_loader = privacy_engine.make_private(
+        privacy_engine = SlaClipPrivacyEngine(
+            num_slots=4,
+            clipping_controller=SlaClipController(eta=0.5),
+        )
+        model, optimizer, data_loader = privacy_engine.make_private(
             module=model,
             optimizer=base_optimizer,
             data_loader=data_loader,
@@ -285,18 +284,6 @@ class SlaClipOptimizerResearchTest(unittest.TestCase):
             max_grad_norm=1.0,
             poisson_sampling=False,
         )
-        optimizer = SlaClipDPOptimizer(
-            private_optimizer.original_optimizer,
-            noise_multiplier=private_optimizer.noise_multiplier,
-            max_grad_norm=private_optimizer.max_grad_norm,
-            expected_batch_size=private_optimizer.expected_batch_size,
-            loss_reduction=private_optimizer.loss_reduction,
-            generator=private_optimizer.generator,
-            secure_mode=private_optimizer.secure_mode,
-            num_slots=4,
-            clipping_controller=SlaClipController(eta=0.5),
-        )
-        optimizer.attach_step_hook(private_optimizer.step_hook)
 
         inputs, targets = next(iter(data_loader))
         optimizer.zero_grad()
@@ -304,7 +291,50 @@ class SlaClipOptimizerResearchTest(unittest.TestCase):
         optimizer.step()
 
         self.assertEqual(len(privacy_engine.accountant), 1)
+        self.assertIsInstance(optimizer, SlaClipDPOptimizer)
         self.assertEqual(optimizer.slack_indicator.shape, (4,))
+
+    def test_privacy_engine_supports_epsilon_entrypoint(self):
+        model = torch.nn.Linear(2, 1)
+        base_optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        data_loader = DataLoader(
+            TensorDataset(torch.randn(8, 2), torch.randn(8, 1)), batch_size=4
+        )
+        privacy_engine = SlaClipPrivacyEngine(accountant="rdp", num_slots=2)
+
+        _, optimizer, _ = privacy_engine.make_private_with_epsilon(
+            module=model,
+            optimizer=base_optimizer,
+            data_loader=data_loader,
+            target_epsilon=10.0,
+            target_delta=1e-5,
+            epochs=1,
+            max_grad_norm=1.0,
+            poisson_sampling=False,
+        )
+
+        self.assertIsInstance(optimizer, SlaClipDPOptimizer)
+        self.assertEqual(optimizer.K, 2)
+        self.assertIsNone(optimizer.clipping_controller)
+
+    def test_privacy_engine_rejects_non_flat_clipping(self):
+        model = torch.nn.Linear(2, 1)
+        base_optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        data_loader = DataLoader(
+            TensorDataset(torch.randn(8, 2), torch.randn(8, 1)), batch_size=4
+        )
+        privacy_engine = SlaClipPrivacyEngine()
+
+        with self.assertRaisesRegex(ValueError, "requires clipping='flat'"):
+            privacy_engine.make_private(
+                module=model,
+                optimizer=base_optimizer,
+                data_loader=data_loader,
+                noise_multiplier=1.0,
+                max_grad_norm=1.0,
+                poisson_sampling=False,
+                clipping="per_layer",
+            )
 
 
 if __name__ == "__main__":

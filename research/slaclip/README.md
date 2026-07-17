@@ -81,60 +81,37 @@ The prototype supports two composable steps:
    (28)-(30) to update the threshold. Since this is post-processing of a DP
    release, it adds no privacy cost.
 
-### Prepare the optimizer
+### Prepare private training
 
-Use `PrivacyEngine.make_private()` normally, then replace its `DPOptimizer`
-with the research optimizer. The helper below preserves all privacy parameters
-and transfers the accountant hook:
+`SlaClipPrivacyEngine` is the recommended entry point. It uses Opacus's native
+model wrapping, data loader, secure RNG, and privacy accountant while selecting
+`SlaClipDPOptimizer` automatically:
 
 ```python
-from opacus import PrivacyEngine
-
-from research.slaclip.slaclipoptimizer import (
-    SlaClipController,
-    SlaClipDPOptimizer,
-)
+from research.slaclip import SlaClipPrivacyEngine
 
 
-privacy_engine = PrivacyEngine()
-model, private_optimizer, train_loader = privacy_engine.make_private(
+privacy_engine = SlaClipPrivacyEngine()
+model, optimizer, train_loader = privacy_engine.make_private(
     module=model,
     optimizer=optimizer,
     data_loader=train_loader,
     noise_multiplier=1.0,
     max_grad_norm=1.0,
 )
-
-
-def make_slaclip_optimizer(private_optimizer, *, num_slots=None, controller=None):
-    optimizer = SlaClipDPOptimizer(
-        private_optimizer.original_optimizer,
-        noise_multiplier=private_optimizer.noise_multiplier,
-        max_grad_norm=private_optimizer.max_grad_norm,
-        expected_batch_size=private_optimizer.expected_batch_size,
-        loss_reduction=private_optimizer.loss_reduction,
-        generator=private_optimizer.generator,
-        secure_mode=private_optimizer.secure_mode,
-        num_slots=num_slots,
-        clipping_controller=controller,
-    )
-    optimizer.attach_step_hook(private_optimizer.step_hook)
-    return optimizer
 ```
 
-The noise multiplier passed to `SlaClipDPOptimizer` must remain the same as the
-one registered with the accountant.
+This entry point also supports the inherited
+`PrivacyEngine.make_private_with_epsilon()` API. It intentionally rejects
+distributed training, non-flat clipping, and ghost clipping, which the current
+research optimizer does not support.
 
 ### Step 1 only: obtain private CDF information
 
-Omit the controller to keep `C` fixed while obtaining the noisy Slack
-Indicator:
+The default `SlaClipPrivacyEngine()` has no controller, so it keeps `C` fixed
+while obtaining the noisy Slack Indicator:
 
 ```python
-optimizer = make_slaclip_optimizer(
-    private_optimizer,
-)
-
 for images, targets in train_loader:
     optimizer.zero_grad()
     loss = criterion(model(images), targets)
@@ -151,16 +128,26 @@ released vector as post-processing without additional privacy cost.
 
 ### Steps 1 and 2: paper SlaClip
 
-Pass the paper controller to adapt `C` after every release:
+Construct the entry point with the paper controller to adapt `C` after every
+release, then call `make_private()` as above:
 
 ```python
-optimizer = make_slaclip_optimizer(
-    private_optimizer,
-    controller=SlaClipController(
+from research.slaclip import SlaClipController, SlaClipPrivacyEngine
+
+
+privacy_engine = SlaClipPrivacyEngine(
+    clipping_controller=SlaClipController(
         eta=0.5,
         min_clipbound=0.1,
         max_clipbound=50.0,
     ),
+)
+model, optimizer, train_loader = privacy_engine.make_private(
+    module=model,
+    optimizer=optimizer,
+    data_loader=train_loader,
+    noise_multiplier=1.0,
+    max_grad_norm=1.0,
 )
 
 for images, targets in train_loader:
@@ -199,9 +186,9 @@ accordingly.
 - `num_slots`: number `K` of CDF bins. `None` automatically selects it from
   equation (36). A positive integer overrides the automatic value.
   Larger values increase resolution but also increase normalized indicator
-  noise.
+  noise. Pass it to `SlaClipPrivacyEngine`.
 - `clipping_controller`: optional post-processing callable. `None` enables the
-  indicator-only mode.
+  indicator-only mode. Pass it to `SlaClipPrivacyEngine`.
 - `eta`: positive multiplicative update step size used by
   `SlaClipController`.
 - `min_clipbound`, `max_clipbound`: positive lower and upper bounds for the
@@ -212,8 +199,9 @@ accordingly.
 
 ## Limitations
 
-- The prototype supports the standard, non-distributed `DPOptimizer` path. It
-  is not registered as a `PrivacyEngine` clipping mode.
+- `SlaClipPrivacyEngine` supports the standard, non-distributed
+  `DPOptimizer` path. SlaClip is not registered as a clipping mode on the core
+  Opacus `PrivacyEngine`.
 - Use it from the repository root through `research.slaclip`; research modules
   are not part of the installed Opacus public API.
 - The privacy argument assumes the same sampling rule, normalization constant,
@@ -230,10 +218,10 @@ From the repository root:
 python -m pytest research/slaclip -q
 ```
 
-The tests cover automatic `K` selection, equations (7)-(8), the
-extended-gradient norm bound, exact agreement of the first `d` coordinates with
-native `DPOptimizer`, indicator-only operation, the paper controller, and empty
-Poisson batches.
+The tests cover the `SlaClipPrivacyEngine` entry point and accountant hook,
+automatic `K` selection, equations (7)-(8), the extended-gradient norm bound,
+exact agreement of the first `d` coordinates with native `DPOptimizer`,
+indicator-only operation, the paper controller, and empty Poisson batches.
 
 ## Citation
 
