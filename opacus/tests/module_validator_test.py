@@ -159,3 +159,46 @@ class ModuleValidator_test(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ModuleValidator.fix(m, replace_bn_with_in=True, num_groups=4)
+
+    def test_validate_error_includes_module_name(self):
+        """Verify that validation errors include the module path and type."""
+        model = nn.Sequential(
+            OrderedDict(
+                [
+                    ("fc", nn.Linear(4, 8)),
+                    ("bn", nn.BatchNorm1d(8)),
+                ]
+            )
+        )
+        errors = ModuleValidator.validate(model)
+        self.assertGreater(len(errors), 0)
+        # The error message should contain the module name "bn" and type "BatchNorm1d"
+        error_message = str(errors[0])
+        self.assertIn("bn", error_message)
+        self.assertIn("BatchNorm1d", error_message)
+
+    def test_validate_error_includes_nested_module_name(self):
+        """Verify that validation errors include the full nested module path."""
+        model = nn.Sequential(
+            OrderedDict(
+                [
+                    (
+                        "block",
+                        nn.Sequential(
+                            OrderedDict(
+                                [
+                                    ("linear", nn.Linear(4, 8)),
+                                    ("norm", nn.BatchNorm1d(8)),
+                                ]
+                            )
+                        ),
+                    ),
+                ]
+            )
+        )
+        errors = ModuleValidator.validate(model)
+        self.assertGreater(len(errors), 0)
+        # The error message should contain the full path "block.norm"
+        error_message = str(errors[0])
+        self.assertIn("block.norm", error_message)
+        self.assertIn("BatchNorm1d", error_message)
