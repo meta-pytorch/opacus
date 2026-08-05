@@ -189,7 +189,7 @@ if __name__ == "__main__":
         nargs="+",
         choices=["baseline", "hooks", "ew", "functorch"],
         default=["baseline", "hooks"],
-        help="Mode to compute per sample gradinets: "
+        help="Mode to compute per sample gradients: "
         "Classic (hooks), Functorch(functorch), "
         "ExpandedWeights(ew), Non-private(baseline)",
     )
