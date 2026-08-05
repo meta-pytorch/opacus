@@ -114,7 +114,7 @@ optional arguments:
                         saved
   --suffix SUFFIX       suffix to append to each result file's name
   --grad_sample_modes {baseline,hooks,ew,functorch} [{baseline,hooks,ew,functorch} ...]
-                        Mode to compute per sample gradinets: Classic (hooks),
+                        Mode to compute per-sample gradients: Classic (hooks),
                         Functorch(functorch), ExpandedWeights(ew), Non-
                         private(baseline)
   --no_save
