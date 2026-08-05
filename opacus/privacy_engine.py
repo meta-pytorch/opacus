@@ -408,7 +408,7 @@ class PrivacyEngine:
 
         # compare module parameter with optimizer parameters
         model_parameters = set(module.parameters())
-        for p in chainfrom_iterable(
+        for p in chain.from_iterable(
             [param_group["params"] for param_group in optimizer.param_groups]
         ):
             if p not in model_parameters:
@@ -573,7 +573,7 @@ class PrivacyEngine:
         sample_rate = 1 / len(data_loader)
 
         if len(self.accountant) > 0:
-            warnings. warn(
+            warnings.warn(
                 "You're calling make_private_with_epsilon with non-zero privacy budget "
                 "already spent. Returned noise_multiplier assumes zero starting point, "
                 "so your overall privacy budget will be higher."
@@ -589,7 +589,7 @@ class PrivacyEngine:
                 target_delta=target_delta,
                 sample_rate=sample_rate,
                 epochs=epochs,
-                accountant=self.accountantmechanism(),
+                accountant=self.accountant.mechanism(),
                 **kwargs,
             ),
             max_grad_norm=max_grad_norm,
@@ -678,7 +678,7 @@ class PrivacyEngine:
             optimizer.load_state_dict(optimizer_state_dict)
         elif (optimizer is not None) ^ (len(optimizer_state_dict) > 0):
             # warn if only one of them is available
-            warnings. warn(
+            warnings.warn(
                 f"optimizer_state_dict has {len(optimizer_state_dict)} items"
                 f" but optimizer is {'' if optimizer else 'not'} provided."
             )
