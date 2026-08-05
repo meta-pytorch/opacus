@@ -79,7 +79,7 @@ def requires_grad(module: nn.Module, *, recurse: bool = False) -> bool:
             be applied recursively to submodules of the specified module
 
     Returns:
-        Flag indicate if any parameters require gradients
+        Flag indicating if any parameters require gradients
     """
     requires_grad = any(p.requires_grad for p in module.parameters(recurse))
     return requires_grad
@@ -89,7 +89,7 @@ def clone_module(module: nn.Module) -> nn.Module:
     """
     Handy utility to clone an nn.Module. PyTorch doesn't always support copy.deepcopy(), so it is
     just easier to serialize the model to a BytesIO and read it from there.
-    When ``weights_only=False``, ``torch.load()`` uses "pickle" module implicity, which is known to be insecure.
+    When ``weights_only=False``, ``torch.load()`` uses the "pickle" module implicitly, which is known to be insecure.
     Only load the model you trust.
 
     Args:

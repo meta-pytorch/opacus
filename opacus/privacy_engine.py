@@ -309,7 +309,7 @@ class PrivacyEngine:
         *,
         module: nn.Module,
         optimizer: optim.Optimizer,
-        criterion=nn.CrossEntropyLoss(),  # Added deafult for backward compatibility
+        criterion=nn.CrossEntropyLoss(),  # Added default for backward compatibility
         data_loader: DataLoader,
         noise_multiplier: float,
         max_grad_norm: Union[float, List[float]],
@@ -340,7 +340,7 @@ class PrivacyEngine:
         All of the returned objects act just like their non-private counterparts
         passed as arguments, but with added DP tasks.
 
-        - Model is wrapped to also compute per sample gradients.
+        - Model is wrapped to also compute per-sample gradients.
         - Optimizer is now responsible for gradient clipping and adding noise to the gradients.
         - Criterion is a wrapper around the original criterion that packages the two backward passes for fast gradient clipping.
         - DataLoader is updated to perform Poisson sampling.
@@ -360,7 +360,7 @@ class PrivacyEngine:
                 higher than this will be clipped to this value.
             batch_first: Flag to indicate if the input tensor to the corresponding module
                 has the first dimension representing the batch. If set to True, dimensions on
-                input tensor are expected be ``[batch_size, ...]``, otherwise
+                input tensor are expected to be ``[batch_size, ...]``, otherwise
                 ``[K, batch_size, ...]``
             loss_reduction: Indicates if the loss reduction (for aggregating the gradients)
                 is a sum or a mean operation. Can take values "sum" or "mean"
@@ -369,20 +369,20 @@ class PrivacyEngine:
                 unchanged. Technically this doesn't fit the assumptions made by
                 privacy accounting mechanism, but it can be a good approximation when
                 using Poisson sampling is unfeasible.
-            clipping: Per sample gradient clipping mechanism ("flat" or "per_layer" or "adaptive").
+            clipping: Per-sample gradient clipping mechanism ("flat" or "per_layer" or "adaptive").
                 Flat clipping calculates the norm of the entire gradient over
                 all parameters, per layer clipping sets individual norms for
-                every parameter tensor, and adaptive clipping updates clipping bound per iteration.
-                Flat clipping is usually preferred, but using per layer clipping in combination
+                every parameter tensor, and adaptive clipping updates the clipping bound per iteration.
+                Flat clipping is usually preferred, but using per-layer clipping in combination
                 with distributed training can provide notable performance gains.
             noise_generator: torch.Generator() object used as a source of randomness for
                 the noise
-            grad_sample_mode: mode for computing per sample gradients. Determines the
+            grad_sample_mode: mode for computing per-sample gradients. Determines the
                 implementation class for the wrapped ``module``. See
                 :class:`~opacus.grad_sample.gsm_base.AbstractGradSampleModule` for more
                 details
-            rand_on_empty: Indicates to return a batch containing random numbers when encountering
-                empty batches samples with Poisson sampling rather than tensors with zero-length batch dimensions
+            rand_on_empty: Indicates whether to return a batch containing random numbers when encountering
+                empty batch samples with Poisson sampling rather than tensors with zero-length batch dimensions
 
         Returns:
             Tuple of (hooks_or_module, optimizer, data_loader) or (hooks_or_module, optimizer, criterion, data_loader).
@@ -392,7 +392,7 @@ class PrivacyEngine:
             - If wrap_model=False: Returns GradSampleHooks object (use your original model directly,
               use returned hooks only for cleanup)
 
-            The hooks object provides .cleanup() method. In non-wrapping mode, the original model
+            The hooks object provides a .cleanup() method. In non-wrapping mode, the original model
             passed to make_private() is unchanged - continue using it normally.
 
             Optimizer is a wrapper around the original optimizer that also does
@@ -506,9 +506,9 @@ class PrivacyEngine:
     ]:
         """
         Version of :meth:`~opacus.privacy_engine.PrivacyEngine.make_private`,
-        that calculates privacy parameters based on a given privacy budget.
+        that calculates privacy parameters given a privacy budget.
 
-        For the full documentation see
+        For the full documentation, see
         :meth:`~opacus.privacy_engine.PrivacyEngine.make_private`
 
         Args:
@@ -533,15 +533,15 @@ class PrivacyEngine:
                 unchanged. Technically this doesn't fit the assumptions made by
                 privacy accounting mechanism, but it can be a good approximation when
                 using Poisson sampling is unfeasible.
-            clipping: Per sample gradient clipping mechanism ("flat" or "per_layer" or "adaptive").
+            clipping: Per-sample gradient clipping mechanism ("flat" or "per_layer" or "adaptive").
                 Flat clipping calculates the norm of the entire gradient over
-                all parameters, per layer clipping sets individual norms for
-                every parameter tensor, and adaptive clipping updates clipping bound per iteration.
-                Flat clipping is usually preferred, but using per layer clipping in combination
+                all parameters, per-layer clipping sets individual norms for
+                every parameter tensor, and adaptive clipping updates the clipping bound per iteration.
+                Flat clipping is usually preferred, but using per-layer clipping in combination
                 with distributed training can provide notable performance gains.
             noise_generator: torch.Generator() object used as a source of randomness for
                 the noise
-            grad_sample_mode: mode for computing per sample gradients. Determines the
+            grad_sample_mode: mode for computing per-sample gradients. Determines the
                 implementation class for the wrapped ``module``. See
                 :class:`~opacus.grad_sample.gsm_base.AbstractGradSampleModule` for more
                 details
@@ -559,7 +559,7 @@ class PrivacyEngine:
             - If wrap_model=False: Returns GradSampleHooks object (use your original model directly,
               use returned hooks only for cleanup)
 
-            The hooks object provides .cleanup() method. In non-wrapping mode, the original model
+            The hooks object provides a .cleanup() method. In non-wrapping mode, the original model
             passed to make_private() is unchanged - continue using it normally.
 
             Optimizer is a wrapper around the original optimizer that also does
