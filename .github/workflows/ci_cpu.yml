@@ -62,11 +62,16 @@ jobs:
           name: unittest-py310-release-reports
           path: unittest-py310-release-reports
       - name: Send coverage to Coveralls (parallel)
-        uses: coverallsapp/github-action@v2
-        with:
-          format: cobertura
-          parallel: true
-          flag-name: run-1
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COVERALLS_FLAG_NAME: run-1
+          COVERALLS_PARALLEL: true
+        run: |
+          for i in 1 2 3 4; do
+            coveralls && break
+            echo "Coveralls upload failed (attempt $i/4), retrying in 30s..."
+            sleep 30
+          done
 
   unittest_py39_torch_release:
     runs-on: ubuntu-latest
@@ -93,11 +98,16 @@ jobs:
           name: unittest-py39-release-reports
           path: unittest-py39-release-reports
       - name: Send coverage to Coveralls (parallel)
-        uses: coverallsapp/github-action@v2
-        with:
-          format: cobertura
-          parallel: true
-          flag-name: run-2
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COVERALLS_FLAG_NAME: run-2
+          COVERALLS_PARALLEL: true
+        run: |
+          for i in 1 2 3 4; do
+            coveralls && break
+            echo "Coveralls upload failed (attempt $i/4), retrying in 30s..."
+            sleep 30
+          done
 
   prv_accountant_values:
     runs-on: ubuntu-latest
@@ -171,11 +181,16 @@ jobs:
           name: mnist-cpu-reports
           path: runs/mnist/test-reports
       - name: Send coverage to Coveralls (parallel)
-        uses: coverallsapp/github-action@v2
-        with:
-          format: cobertura
-          parallel: true
-          flag-name: run-3
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COVERALLS_FLAG_NAME: run-3
+          COVERALLS_PARALLEL: true
+        run: |
+          for i in 1 2 3 4; do
+            coveralls && break
+            echo "Coveralls upload failed (attempt $i/4), retrying in 30s..."
+            sleep 30
+          done
 
   ######## FINISH COVERALLS ##########
   finish_coveralls_parallel:
@@ -184,9 +199,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-      - name: Finish Coveralls Parallel
-        uses: coverallsapp/github-action@v2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          parallel-finished: true
-          carryforward: "run-1,run-2,run-3"
+      - name: Install coveralls CLI
+        run: pip install coveralls
+      - name: Finish Coveralls Parallel (with retry)
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for i in 1 2 3 4; do
+            coveralls --finish && break
+            echo "Coveralls finish webhook failed (attempt $i/4), retrying in 30s..."
+            sleep 30
+          done
