@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: '3.9'
       - name: Install dependencies
@@ -39,9 +39,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: '3.10'
       - name: Install dependencies
@@ -57,7 +57,7 @@ jobs:
           # Format into xml to be used for coveralls
           coverage xml -i
       - name: Store test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unittest-py310-release-reports
           path: unittest-py310-release-reports
@@ -72,9 +72,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: 3.9
       - name: Install dependencies
@@ -88,7 +88,7 @@ jobs:
           coverage run -m pytest --doctest-modules -p conftest opacus
           coverage xml -i
       - name: Store test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unittest-py39-release-reports
           path: unittest-py39-release-reports
@@ -103,9 +103,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: 3.9
       - name: Install dependencies
@@ -122,9 +122,9 @@ jobs:
     if: ${{ github.event_name == 'schedule' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: 3.9
       - name: Install dependencies
@@ -137,7 +137,7 @@ jobs:
           mkdir unittest-py39-nightly-reports
           python -m pytest --doctest-modules -p conftest --junitxml=unittest-py39-nightly-reports/junit.xml opacus
       - name: Store test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unittest-py39-nightly-reports
           path: unittest-py39-nightly-reports
@@ -147,9 +147,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: 3.9
       - name: Install dependencies
@@ -166,7 +166,7 @@ jobs:
           coverage report -i -m
           coverage xml -i
       - name: Store test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mnist-cpu-reports
           path: runs/mnist/test-reports
@@ -183,7 +183,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
       - name: Finish Coveralls Parallel
         uses: coverallsapp/github-action@v2
         with:

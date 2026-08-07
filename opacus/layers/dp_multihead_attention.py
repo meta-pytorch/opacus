@@ -206,8 +206,10 @@ class DPMultiheadAttention(nn.Module):
 
         if not self.batch_first:
             tgt_len, bsz, embed_dim = query.size()
+            key_seq_len = key.size(0)
         else:
             bsz, tgt_len, embed_dim = query.size()
+            key_seq_len = key.size(1)
 
         if embed_dim != self.embed_dim:
             raise ValueError(
@@ -253,13 +255,13 @@ class DPMultiheadAttention(nn.Module):
 
             if attn_mask.dim() == 2:
                 attn_mask = attn_mask.unsqueeze(0)
-                if list(attn_mask.size()) != [1, query.size(0), key.size(0)]:
+                if list(attn_mask.size()) != [1, tgt_len, key_seq_len]:
                     raise ValueError("The size of the 2D attn_mask is not correct.")
             elif attn_mask.dim() == 3:
                 if list(attn_mask.size()) != [
                     bsz * self.num_heads,
-                    query.size(0),
-                    key.size(0),
+                    tgt_len,
+                    key_seq_len,
                 ]:
                     raise ValueError("The size of the 3D attn_mask is not correct.")
             else:
@@ -352,7 +354,12 @@ class DPMultiheadAttention(nn.Module):
         assert list(attn_output.size()) == [bsz * self.num_heads, tgt_len, head_dim]
 
         if self.batch_first:
-            attn_output = attn_output.contiguous().view(bsz, tgt_len, embed_dim)
+            attn_output = (
+                attn_output.view(bsz, self.num_heads, tgt_len, head_dim)
+                .transpose(1, 2)
+                .contiguous()
+                .view(bsz, tgt_len, embed_dim)
+            )
         else:
             attn_output = (
                 attn_output.transpose(0, 1).contiguous().view(tgt_len, bsz, embed_dim)

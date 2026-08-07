@@ -157,6 +157,3 @@ class PRVAccountant(IAccountant):
     @classmethod
     def mechanism(cls) -> str:
         return "prv"
-
-    def __len__(self):
-        return len(self.history)
