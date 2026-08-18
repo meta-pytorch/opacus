@@ -65,7 +65,7 @@ class RDPAccountant(IAccountant):
         eps, best_alpha = privacy_analysis.get_privacy_spent(
             orders=alphas, rdp=rdp, delta=delta
         )
-        return float(eps), float(best_alpha)
+        return float(max(eps, 0.0)), float(best_alpha)
 
     def get_epsilon(
         self,

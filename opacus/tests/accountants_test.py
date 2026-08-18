@@ -129,6 +129,18 @@ class AccountingTest(unittest.TestCase):
         epsilon = accountant.get_epsilon(delta=1e-5)
         self.assertAlmostEqual(epsilon, 6.777395712150674)
 
+    def test_epsilon_non_negative_at_large_delta(self) -> None:
+        # Fix for: https://github.com/meta-pytorch/opacus/issues/585
+        # when delta >= delta(eps=0) eps must be clamped to 0 to avoid
+        #   negatives(rdp, prv) or failing(gdp)
+        for accountant, delta in (
+            (PRVAccountant(), 0.08),
+            (RDPAccountant(), 0.2),
+            (GaussianAccountant(), 0.08),
+        ):
+            accountant.step(noise_multiplier=1.2, sample_rate=0.2)
+            self.assertGreaterEqual(accountant.get_epsilon(delta=delta), 0.0)
+
     def test_len_counts_optimization_steps(self) -> None:
         noise_multiplier = 1.5
         sample_rate = 0.04

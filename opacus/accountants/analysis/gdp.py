@@ -94,6 +94,9 @@ def eps_from_mu(*, mu: float, delta: float) -> float:
         """Reversely solve dual by matching delta."""
         return delta_eps_mu(eps=x, mu=mu) - delta
 
+    if f(0) <= 0:
+        return 0.0
+
     return optimize.root_scalar(f, bracket=[0, 500], method="brentq").root
 
 
