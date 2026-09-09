@@ -435,14 +435,28 @@ class DPOptimizer(Optimizer):
         Stores clipped and aggregated gradients into `p.summed_grad```
         """
 
-        if len(self.grad_samples[0]) == 0:
-            # Empty batch
-            per_sample_clip_factor = torch.zeros(
-                (0,), device=self.grad_samples[0].device
+        grad_samples = self.grad_samples
+        batch_sizes = [len(g) for g in grad_samples]
+        if len(set(batch_sizes)) > 1:
+            details = ", ".join(
+                f"parameter {i} (shape {tuple(p.shape)}): {n}"
+                for i, (p, n) in enumerate(zip(self.params, batch_sizes))
             )
+            raise ValueError(
+                "Per-sample gradients have inconsistent batch dimensions: "
+                f"{details}. All optimized parameters must have one gradient per "
+                "example. This can occur when inputs such as position_ids are "
+                "broadcast across the batch. If so, expand those inputs to the "
+                "actual batch size before the forward pass; repeating gradients after "
+                "backward does not recover per-example contributions."
+            )
+
+        if len(grad_samples[0]) == 0:
+            # Empty batch
+            per_sample_clip_factor = torch.zeros((0,), device=grad_samples[0].device)
         else:
             per_param_norms = [
-                g.reshape(len(g), -1).norm(2, dim=-1) for g in self.grad_samples
+                g.reshape(len(g), -1).norm(2, dim=-1) for g in grad_samples
             ]
 
             if per_param_norms:
@@ -454,6 +468,8 @@ class DPOptimizer(Optimizer):
                 self.max_grad_norm / (per_sample_norms + 1e-6)
             ).clamp(max=1.0)
 
+        # Release concatenated accumulated gradients before processing parameters.
+        del grad_samples
         for p in self.params:
             _check_processed_flag(p.grad_sample)
             grad_sample = self._get_flat_grad_sample(p)
