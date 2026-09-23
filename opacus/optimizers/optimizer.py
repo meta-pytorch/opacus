@@ -175,16 +175,16 @@ class DPOptimizer(Optimizer):
     sample gradients and add Gaussian noise.
 
     Can be used with any ``torch.optim.Optimizer`` subclass as an underlying optimizer.
-    ``DPOptimzer`` assumes that parameters over which it performs optimization belong
+    ``DPOptimizer`` assumes that parameters over which it performs optimization belong
     to GradSampleModule and therefore have the ``grad_sample`` attribute.
 
-    On a high level ``DPOptimizer``'s step looks like this:
-    1) Aggregate ``p.grad_sample`` over all parameters to calculate per sample norms
-    2) Clip ``p.grad_sample`` so that per sample norm is not above threshold
-    3) Aggregate clipped per sample gradients into ``p.grad``
+    On a high level, ``DPOptimizer``'s step looks like this:
+    1) Aggregate ``p.grad_sample`` over all parameters to calculate per-sample norms
+    2) Clip ``p.grad_sample`` so that per-sample norm is not above threshold
+    3) Aggregate clipped per-sample gradients into ``p.grad``
     4) Add Gaussian noise to ``p.grad`` calibrated to a given noise multiplier and
     max grad norm limit (``std = noise_multiplier * max_grad_norm``).
-    5) Call underlying optimizer to perform optimization step
+    5) Call the underlying optimizer to perform an optimization step
 
     Examples:
         >>> module = MyCustomModel()
@@ -548,7 +548,7 @@ class DPOptimizer(Optimizer):
                 returns the loss. Optional for most optimizers.
         """
         # The corner case when the optimizer has no trainable parameters.
-        # Essentially the DPOptimizer act as a normal optimizer
+        # Essentially the DPOptimizer acts as a normal optimizer
         if self.grad_samples is None or len(self.grad_samples) == 0:
             return True
         self.clip_and_accumulate()

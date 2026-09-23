@@ -574,7 +574,7 @@ def parse_args():
         "--local_rank",
         type=int,
         default=-1,
-        help="Local rank if multi-GPU training, -1 for single GPU training. Will be overriden by the environment variables if running on a Slurm cluster.",
+        help="Local rank if multi-GPU training, -1 for single GPU training. Will be overridden by the environment variables if running on a Slurm cluster.",
     )
 
     parser.add_argument(

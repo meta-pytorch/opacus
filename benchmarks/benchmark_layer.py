@@ -136,7 +136,7 @@ if __name__ == "__main__":
         type=str,
         choices=["baseline", "hooks", "ew", "functorch"],
         default="baseline",
-        help="Mode to compute per sample gradinets: Non-private(baseline), Classic (hooks), Functorch(functorch), ExpandedWeights(ew)",
+        help="Mode to compute per-sample gradients: Non-private(baseline), Classic (hooks), Functorch(functorch), ExpandedWeights(ew)",
     )
     args = parser.parse_args()
     main(args)
