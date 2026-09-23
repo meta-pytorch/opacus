@@ -41,14 +41,17 @@
 <span class="c1"># limitations under the License.</span>
 
 <span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span>
 
+<span class="kn">import</span> <span class="nn">torch.fx</span> <span class="k">as</span> <span class="nn">fx</span>
 <span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
 <span class="kn">from</span> <span class="nn">opacus.utils.module_utils</span> <span class="kn">import</span> <span class="n">clone_module</span><span class="p">,</span> <span class="n">get_submodule</span><span class="p">,</span> <span class="n">trainable_modules</span>
 <span class="kn">from</span> <span class="nn">opacus.validators.errors</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">IllegalModuleConfigurationError</span><span class="p">,</span>
     <span class="n">UnsupportedModuleError</span><span class="p">,</span>
 <span class="p">)</span>
+<span class="kn">from</span> <span class="nn">opacus.validators.inplace</span> <span class="kn">import</span> <span class="n">disable_inplace</span><span class="p">,</span> <span class="n">fix_inplace_operations</span>
 
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -121,16 +124,59 @@
 <div class="viewcode-block" id="ModuleValidator.fix">
 <a class="viewcode-back" href="../../../validator.html#opacus.validators.module_validator.ModuleValidator.fix">[docs]</a>
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">fix</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">module</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">fix</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span> <span class="n">module</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">remove_inplace_ops</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Make the module and sub_modules DP compatible by running registered custom fixers.</span>
 
+<span class="sd">        In addition to the per-module-type fixers, this always disables in-place</span>
+<span class="sd">        activation flags (e.g. ``nn.ReLU(inplace=True)``) since in-place writes are</span>
+<span class="sd">        incompatible with Opacus' backward hooks. This is a cheap, type-preserving</span>
+<span class="sd">        fix that requires no tracing.</span>
+
+<span class="sd">        Functional/tensor in-place ops baked into ``forward`` (e.g. a ResNet's</span>
+<span class="sd">        ``out += identity``) are only rewritten when ``remove_inplace_ops=True``,</span>
+<span class="sd">        because doing so requires symbolic tracing and changes the returned type.</span>
+<span class="sd">        It is opt-in: models without such ops (or whose only in-place ops are the</span>
+<span class="sd">        activation flags handled above) do not need it. If your model crashes under</span>
+<span class="sd">        ``grad_sample_mode="hooks"`` with ``RuntimeError: Output 0 of</span>
+<span class="sd">        BackwardHookFunction is a view and is being modified inplace``, re-run with</span>
+<span class="sd">        ``remove_inplace_ops=True``.</span>
+
+<span class="sd">        When ``remove_inplace_ops=True`` and tracing succeeds, the returned object</span>
+<span class="sd">        is a ``torch.fx.GraphModule``, not the original ``nn.Module`` subclass.</span>
+<span class="sd">        ``GraphModule`` is a subclass of ``nn.Module`` and preserves forward outputs</span>
+<span class="sd">        for typical models, but ``isinstance`` checks against the original class,</span>
+<span class="sd">        custom methods defined on the original class, pickling by class name, and</span>
+<span class="sd">        similar type-dependent code will observe the GraphModule type instead. A</span>
+<span class="sd">        warning is emitted in this case.</span>
+
+<span class="sd">        FX tracing also records a single execution path: data-independent control</span>
+<span class="sd">        flow in the root ``forward`` (e.g. ``if self.training``) is frozen to the</span>
+<span class="sd">        branch taken during tracing, so a later ``.train()``/``.eval()`` toggle may</span>
+<span class="sd">        have no effect. Standard ``nn.Dropout``/``nn.BatchNorm`` submodules keep</span>
+<span class="sd">        their own flags and are unaffected.</span>
+
+<span class="sd">        Rewriting replaces in-place writes with out-of-place equivalents. Forward</span>
+<span class="sd">        outputs are preserved, but aliasing semantics change: a tensor mutated in</span>
+<span class="sd">        place is instead replaced by a new tensor, so other aliases to the original</span>
+<span class="sd">        storage will not see the update. Code relying on in-place side effects via</span>
+<span class="sd">        aliasing may diverge in behavior.</span>
+
+<span class="sd">        Models that cannot be symbolically traced (e.g. data-dependent control flow)</span>
+<span class="sd">        are returned unchanged and the fallback is logged at INFO level.</span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            module: The root module to be made compatible.</span>
-<span class="sd">            **kwargs: Arbitrary keyword arguments.</span>
+<span class="sd">            remove_inplace_ops: If True, rewrite functional/tensor in-place ops</span>
+<span class="sd">                out-of-place via symbolic tracing. Defaults to False. No-op if the</span>
+<span class="sd">                module cannot be traced.</span>
+<span class="sd">            **kwargs: Arbitrary keyword arguments forwarded to the per-module fixers.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Fixed module.</span>
+<span class="sd">            Fixed module. Type is ``torch.fx.GraphModule`` when tracing succeeds with</span>
+<span class="sd">            ``remove_inplace_ops=True``, otherwise the original (cloned) ``nn.Module`` type.</span>
 <span class="sd">        """</span>
         <span class="n">module</span> <span class="o">=</span> <span class="n">clone_module</span><span class="p">(</span><span class="n">module</span><span class="p">)</span>
         <span class="c1"># iterate over all sub_modules</span>
@@ -157,6 +203,29 @@
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">"Replaced sub_module </span><span class="si">{</span><span class="n">sub_module_name</span><span class="si">}</span><span class="s2"> : </span><span class="si">{</span><span class="n">sub_module</span><span class="si">}</span><span class="s2">"</span>
                     <span class="sa">f</span><span class="s2">" with </span><span class="si">{</span><span class="n">new_sub_module</span><span class="si">}</span><span class="s2">"</span>
+                <span class="p">)</span>
+        <span class="c1"># in-place writes are incompatible with Opacus' backward hooks: always</span>
+        <span class="c1"># disable in-place activation flags, and optionally rewrite functional</span>
+        <span class="c1"># in-place ops (e.g. ``out += identity``) out-of-place.</span>
+        <span class="n">disable_inplace</span><span class="p">(</span><span class="n">module</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">remove_inplace_ops</span><span class="p">:</span>
+            <span class="n">module</span> <span class="o">=</span> <span class="n">fix_inplace_operations</span><span class="p">(</span><span class="n">module</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">fx</span><span class="o">.</span><span class="n">GraphModule</span><span class="p">):</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                    <span class="s2">"ModuleValidator.fix() traced your model with torch.fx to rewrite "</span>
+                    <span class="s2">"any in-place operations out-of-place. Because of this, the returned "</span>
+                    <span class="s2">"model is now a torch.fx.GraphModule instead of its original type. "</span>
+                    <span class="s2">"Two things to be aware of:</span><span class="se">\n</span><span class="s2">"</span>
+                    <span class="s2">"  1. Anything that checks the model's type -- isinstance checks, "</span>
+                    <span class="s2">"custom methods on your model class, or pickling -- may not behave "</span>
+                    <span class="s2">"as before.</span><span class="se">\n</span><span class="s2">"</span>
+                    <span class="s2">"  2. If your model's forward() uses an if/else on a flag such as "</span>
+                    <span class="s2">"self.training, tracing keeps only the branch taken while tracing, "</span>
+                    <span class="s2">"so switching between .train() and .eval() afterwards may have no "</span>
+                    <span class="s2">"effect. (Standard layers like Dropout and BatchNorm are not "</span>
+                    <span class="s2">"affected.)</span><span class="se">\n</span><span class="s2">"</span>
+                    <span class="s2">"To skip tracing and keep your model's original type, call "</span>
+                    <span class="s2">"ModuleValidator.fix(..., remove_inplace_ops=False)."</span><span class="p">,</span>
                 <span class="p">)</span>
         <span class="c1"># return fixed module</span>
         <span class="k">return</span> <span class="n">module</span></div>

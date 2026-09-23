@@ -33,20 +33,55 @@
 Also works as a namespace to hold registered validators and fixers.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="opacus.validators.module_validator.ModuleValidator.fix">
-<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">fix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/validators/module_validator.html#ModuleValidator.fix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.validators.module_validator.ModuleValidator.fix" title="Link to this definition">¶</a></dt>
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">fix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_inplace_ops</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/opacus/validators/module_validator.html#ModuleValidator.fix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#opacus.validators.module_validator.ModuleValidator.fix" title="Link to this definition">¶</a></dt>
 <dd><p>Make the module and sub_modules DP compatible by running registered custom fixers.</p>
+<p>In addition to the per-module-type fixers, this always disables in-place
+activation flags (e.g. <code class="docutils literal notranslate"><span class="pre">nn.ReLU(inplace=True)</span></code>) since in-place writes are
+incompatible with Opacus’ backward hooks. This is a cheap, type-preserving
+fix that requires no tracing.</p>
+<p>Functional/tensor in-place ops baked into <code class="docutils literal notranslate"><span class="pre">forward</span></code> (e.g. a ResNet’s
+<code class="docutils literal notranslate"><span class="pre">out</span> <span class="pre">+=</span> <span class="pre">identity</span></code>) are only rewritten when <code class="docutils literal notranslate"><span class="pre">remove_inplace_ops=True</span></code>,
+because doing so requires symbolic tracing and changes the returned type.
+It is opt-in: models without such ops (or whose only in-place ops are the
+activation flags handled above) do not need it. If your model crashes under
+<code class="docutils literal notranslate"><span class="pre">grad_sample_mode="hooks"</span></code> with <code class="docutils literal notranslate"><span class="pre">RuntimeError:</span> <span class="pre">Output</span> <span class="pre">0</span> <span class="pre">of</span>
+<span class="pre">BackwardHookFunction</span> <span class="pre">is</span> <span class="pre">a</span> <span class="pre">view</span> <span class="pre">and</span> <span class="pre">is</span> <span class="pre">being</span> <span class="pre">modified</span> <span class="pre">inplace</span></code>, re-run with
+<code class="docutils literal notranslate"><span class="pre">remove_inplace_ops=True</span></code>.</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">remove_inplace_ops=True</span></code> and tracing succeeds, the returned object
+is a <code class="docutils literal notranslate"><span class="pre">torch.fx.GraphModule</span></code>, not the original <code class="docutils literal notranslate"><span class="pre">nn.Module</span></code> subclass.
+<code class="docutils literal notranslate"><span class="pre">GraphModule</span></code> is a subclass of <code class="docutils literal notranslate"><span class="pre">nn.Module</span></code> and preserves forward outputs
+for typical models, but <code class="docutils literal notranslate"><span class="pre">isinstance</span></code> checks against the original class,
+custom methods defined on the original class, pickling by class name, and
+similar type-dependent code will observe the GraphModule type instead. A
+warning is emitted in this case.</p>
+<p>FX tracing also records a single execution path: data-independent control
+flow in the root <code class="docutils literal notranslate"><span class="pre">forward</span></code> (e.g. <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">self.training</span></code>) is frozen to the
+branch taken during tracing, so a later <code class="docutils literal notranslate"><span class="pre">.train()</span></code>/<code class="docutils literal notranslate"><span class="pre">.eval()</span></code> toggle may
+have no effect. Standard <code class="docutils literal notranslate"><span class="pre">nn.Dropout</span></code>/<code class="docutils literal notranslate"><span class="pre">nn.BatchNorm</span></code> submodules keep
+their own flags and are unaffected.</p>
+<p>Rewriting replaces in-place writes with out-of-place equivalents. Forward
+outputs are preserved, but aliasing semantics change: a tensor mutated in
+place is instead replaced by a new tensor, so other aliases to the original
+storage will not see the update. Code relying on in-place side effects via
+aliasing may diverge in behavior.</p>
+<p>Models that cannot be symbolically traced (e.g. data-dependent control flow)
+are returned unchanged and the fallback is logged at INFO level.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>module</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span>) – The root module to be made compatible.</p></li>
-<li><p><strong>**kwargs</strong> – Arbitrary keyword arguments.</p></li>
+<li><p><strong>remove_inplace_ops</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – If True, rewrite functional/tensor in-place ops
+out-of-place via symbolic tracing. Defaults to False. No-op if the
+module cannot be traced.</p></li>
+<li><p><strong>**kwargs</strong> – Arbitrary keyword arguments forwarded to the per-module fixers.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></span></p>
 </dd>
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Fixed module.</p>
+<dd class="field-odd"><p>Fixed module. Type is <code class="docutils literal notranslate"><span class="pre">torch.fx.GraphModule</span></code> when tracing succeeds with
+<code class="docutils literal notranslate"><span class="pre">remove_inplace_ops=True</span></code>, otherwise the original (cloned) <code class="docutils literal notranslate"><span class="pre">nn.Module</span></code> type.</p>
 </dd>
 </dl>
 </dd></dl>
