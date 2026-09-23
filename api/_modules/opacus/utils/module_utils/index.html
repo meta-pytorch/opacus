@@ -117,7 +117,7 @@
 <span class="sd">            be applied recursively to submodules of the specified module</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        Flag indicate if any parameters require gradients</span>
+<span class="sd">        Flag indicating if any parameters require gradients</span>
 <span class="sd">    """</span>
     <span class="n">requires_grad</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">requires_grad</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">module</span><span class="o">.</span><span class="n">parameters</span><span class="p">(</span><span class="n">recurse</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">requires_grad</span></div>
@@ -130,7 +130,7 @@
 <span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Handy utility to clone an nn.Module. PyTorch doesn't always support copy.deepcopy(), so it is</span>
 <span class="sd">    just easier to serialize the model to a BytesIO and read it from there.</span>
-<span class="sd">    When ``weights_only=False``, ``torch.load()`` uses "pickle" module implicity, which is known to be insecure.</span>
+<span class="sd">    When ``weights_only=False``, ``torch.load()`` uses the "pickle" module implicitly, which is known to be insecure.</span>
 <span class="sd">    Only load the model you trust.</span>
 
 <span class="sd">    Args:</span>

@@ -349,7 +349,7 @@
         <span class="o">*</span><span class="p">,</span>
         <span class="n">module</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
         <span class="n">optimizer</span><span class="p">:</span> <span class="n">optim</span><span class="o">.</span><span class="n">Optimizer</span><span class="p">,</span>
-        <span class="n">criterion</span><span class="o">=</span><span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">(),</span>  <span class="c1"># Added deafult for backward compatibility</span>
+        <span class="n">criterion</span><span class="o">=</span><span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">(),</span>  <span class="c1"># Added default for backward compatibility</span>
         <span class="n">data_loader</span><span class="p">:</span> <span class="n">DataLoader</span><span class="p">,</span>
         <span class="n">noise_multiplier</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
         <span class="n">max_grad_norm</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]],</span>
@@ -380,7 +380,7 @@
 <span class="sd">        All of the returned objects act just like their non-private counterparts</span>
 <span class="sd">        passed as arguments, but with added DP tasks.</span>
 
-<span class="sd">        - Model is wrapped to also compute per sample gradients.</span>
+<span class="sd">        - Model is wrapped to also compute per-sample gradients.</span>
 <span class="sd">        - Optimizer is now responsible for gradient clipping and adding noise to the gradients.</span>
 <span class="sd">        - Criterion is a wrapper around the original criterion that packages the two backward passes for fast gradient clipping.</span>
 <span class="sd">        - DataLoader is updated to perform Poisson sampling.</span>
@@ -400,7 +400,7 @@
 <span class="sd">                higher than this will be clipped to this value.</span>
 <span class="sd">            batch_first: Flag to indicate if the input tensor to the corresponding module</span>
 <span class="sd">                has the first dimension representing the batch. If set to True, dimensions on</span>
-<span class="sd">                input tensor are expected be ``[batch_size, ...]``, otherwise</span>
+<span class="sd">                input tensor are expected to be ``[batch_size, ...]``, otherwise</span>
 <span class="sd">                ``[K, batch_size, ...]``</span>
 <span class="sd">            loss_reduction: Indicates if the loss reduction (for aggregating the gradients)</span>
 <span class="sd">                is a sum or a mean operation. Can take values "sum" or "mean"</span>
@@ -409,20 +409,20 @@
 <span class="sd">                unchanged. Technically this doesn't fit the assumptions made by</span>
 <span class="sd">                privacy accounting mechanism, but it can be a good approximation when</span>
 <span class="sd">                using Poisson sampling is unfeasible.</span>
-<span class="sd">            clipping: Per sample gradient clipping mechanism ("flat" or "per_layer" or "adaptive").</span>
+<span class="sd">            clipping: Per-sample gradient clipping mechanism ("flat" or "per_layer" or "adaptive").</span>
 <span class="sd">                Flat clipping calculates the norm of the entire gradient over</span>
 <span class="sd">                all parameters, per layer clipping sets individual norms for</span>
-<span class="sd">                every parameter tensor, and adaptive clipping updates clipping bound per iteration.</span>
-<span class="sd">                Flat clipping is usually preferred, but using per layer clipping in combination</span>
+<span class="sd">                every parameter tensor, and adaptive clipping updates the clipping bound per iteration.</span>
+<span class="sd">                Flat clipping is usually preferred, but using per-layer clipping in combination</span>
 <span class="sd">                with distributed training can provide notable performance gains.</span>
 <span class="sd">            noise_generator: torch.Generator() object used as a source of randomness for</span>
 <span class="sd">                the noise</span>
-<span class="sd">            grad_sample_mode: mode for computing per sample gradients. Determines the</span>
+<span class="sd">            grad_sample_mode: mode for computing per-sample gradients. Determines the</span>
 <span class="sd">                implementation class for the wrapped ``module``. See</span>
 <span class="sd">                :class:`~opacus.grad_sample.gsm_base.AbstractGradSampleModule` for more</span>
 <span class="sd">                details</span>
-<span class="sd">            rand_on_empty: Indicates to return a batch containing random numbers when encountering</span>
-<span class="sd">                empty batches samples with Poisson sampling rather than tensors with zero-length batch dimensions</span>
+<span class="sd">            rand_on_empty: Indicates whether to return a batch containing random numbers when encountering</span>
+<span class="sd">                empty batch samples with Poisson sampling rather than tensors with zero-length batch dimensions</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Tuple of (hooks_or_module, optimizer, data_loader) or (hooks_or_module, optimizer, criterion, data_loader).</span>
@@ -432,7 +432,7 @@
 <span class="sd">            - If wrap_model=False: Returns GradSampleHooks object (use your original model directly,</span>
 <span class="sd">              use returned hooks only for cleanup)</span>
 
-<span class="sd">            The hooks object provides .cleanup() method. In non-wrapping mode, the original model</span>
+<span class="sd">            The hooks object provides a .cleanup() method. In non-wrapping mode, the original model</span>
 <span class="sd">            passed to make_private() is unchanged - continue using it normally.</span>
 
 <span class="sd">            Optimizer is a wrapper around the original optimizer that also does</span>
@@ -549,9 +549,9 @@
     <span class="p">]:</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Version of :meth:`~opacus.privacy_engine.PrivacyEngine.make_private`,</span>
-<span class="sd">        that calculates privacy parameters based on a given privacy budget.</span>
+<span class="sd">        that calculates privacy parameters given a privacy budget.</span>
 
-<span class="sd">        For the full documentation see</span>
+<span class="sd">        For the full documentation, see</span>
 <span class="sd">        :meth:`~opacus.privacy_engine.PrivacyEngine.make_private`</span>
 
 <span class="sd">        Args:</span>
@@ -576,15 +576,15 @@
 <span class="sd">                unchanged. Technically this doesn't fit the assumptions made by</span>
 <span class="sd">                privacy accounting mechanism, but it can be a good approximation when</span>
 <span class="sd">                using Poisson sampling is unfeasible.</span>
-<span class="sd">            clipping: Per sample gradient clipping mechanism ("flat" or "per_layer" or "adaptive").</span>
+<span class="sd">            clipping: Per-sample gradient clipping mechanism ("flat" or "per_layer" or "adaptive").</span>
 <span class="sd">                Flat clipping calculates the norm of the entire gradient over</span>
-<span class="sd">                all parameters, per layer clipping sets individual norms for</span>
-<span class="sd">                every parameter tensor, and adaptive clipping updates clipping bound per iteration.</span>
-<span class="sd">                Flat clipping is usually preferred, but using per layer clipping in combination</span>
+<span class="sd">                all parameters, per-layer clipping sets individual norms for</span>
+<span class="sd">                every parameter tensor, and adaptive clipping updates the clipping bound per iteration.</span>
+<span class="sd">                Flat clipping is usually preferred, but using per-layer clipping in combination</span>
 <span class="sd">                with distributed training can provide notable performance gains.</span>
 <span class="sd">            noise_generator: torch.Generator() object used as a source of randomness for</span>
 <span class="sd">                the noise</span>
-<span class="sd">            grad_sample_mode: mode for computing per sample gradients. Determines the</span>
+<span class="sd">            grad_sample_mode: mode for computing per-sample gradients. Determines the</span>
 <span class="sd">                implementation class for the wrapped ``module``. See</span>
 <span class="sd">                :class:`~opacus.grad_sample.gsm_base.AbstractGradSampleModule` for more</span>
 <span class="sd">                details</span>
@@ -602,7 +602,7 @@
 <span class="sd">            - If wrap_model=False: Returns GradSampleHooks object (use your original model directly,</span>
 <span class="sd">              use returned hooks only for cleanup)</span>
 
-<span class="sd">            The hooks object provides .cleanup() method. In non-wrapping mode, the original model</span>
+<span class="sd">            The hooks object provides a .cleanup() method. In non-wrapping mode, the original model</span>
 <span class="sd">            passed to make_private() is unchanged - continue using it normally.</span>
 
 <span class="sd">            Optimizer is a wrapper around the original optimizer that also does</span>

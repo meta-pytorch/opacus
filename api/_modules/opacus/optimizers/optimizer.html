@@ -204,16 +204,16 @@
 <span class="sd">    sample gradients and add Gaussian noise.</span>
 
 <span class="sd">    Can be used with any ``torch.optim.Optimizer`` subclass as an underlying optimizer.</span>
-<span class="sd">    ``DPOptimzer`` assumes that parameters over which it performs optimization belong</span>
+<span class="sd">    ``DPOptimizer`` assumes that parameters over which it performs optimization belong</span>
 <span class="sd">    to GradSampleModule and therefore have the ``grad_sample`` attribute.</span>
 
-<span class="sd">    On a high level ``DPOptimizer``'s step looks like this:</span>
-<span class="sd">    1) Aggregate ``p.grad_sample`` over all parameters to calculate per sample norms</span>
-<span class="sd">    2) Clip ``p.grad_sample`` so that per sample norm is not above threshold</span>
-<span class="sd">    3) Aggregate clipped per sample gradients into ``p.grad``</span>
+<span class="sd">    On a high level, ``DPOptimizer``'s step looks like this:</span>
+<span class="sd">    1) Aggregate ``p.grad_sample`` over all parameters to calculate per-sample norms</span>
+<span class="sd">    2) Clip ``p.grad_sample`` so that per-sample norm is not above threshold</span>
+<span class="sd">    3) Aggregate clipped per-sample gradients into ``p.grad``</span>
 <span class="sd">    4) Add Gaussian noise to ``p.grad`` calibrated to a given noise multiplier and</span>
 <span class="sd">    max grad norm limit (``std = noise_multiplier * max_grad_norm``).</span>
-<span class="sd">    5) Call underlying optimizer to perform optimization step</span>
+<span class="sd">    5) Call the underlying optimizer to perform an optimization step</span>
 
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; module = MyCustomModel()</span>
@@ -597,7 +597,7 @@
 <span class="sd">                returns the loss. Optional for most optimizers.</span>
 <span class="sd">        """</span>
         <span class="c1"># The corner case when the optimizer has no trainable parameters.</span>
-        <span class="c1"># Essentially the DPOptimizer act as a normal optimizer</span>
+        <span class="c1"># Essentially the DPOptimizer acts as a normal optimizer</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">grad_samples</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grad_samples</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">True</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">clip_and_accumulate</span><span class="p">()</span>
