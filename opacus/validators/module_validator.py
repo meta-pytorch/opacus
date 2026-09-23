@@ -14,14 +14,17 @@
 # limitations under the License.
 
 import logging
+import warnings
 from typing import List
 
+import torch.fx as fx
 import torch.nn as nn
 from opacus.utils.module_utils import clone_module, get_submodule, trainable_modules
 from opacus.validators.errors import (
     IllegalModuleConfigurationError,
     UnsupportedModuleError,
 )
+from opacus.validators.inplace import disable_inplace, fix_inplace_operations
 
 
 logger = logging.getLogger(__name__)
@@ -84,16 +87,59 @@ class ModuleValidator:
         return len(cls.validate(module, strict=False)) == 0
 
     @classmethod
-    def fix(cls, module: nn.Module, **kwargs) -> nn.Module:
+    def fix(
+        cls, module: nn.Module, *, remove_inplace_ops: bool = False, **kwargs
+    ) -> nn.Module:
         """
         Make the module and sub_modules DP compatible by running registered custom fixers.
 
+        In addition to the per-module-type fixers, this always disables in-place
+        activation flags (e.g. ``nn.ReLU(inplace=True)``) since in-place writes are
+        incompatible with Opacus' backward hooks. This is a cheap, type-preserving
+        fix that requires no tracing.
+
+        Functional/tensor in-place ops baked into ``forward`` (e.g. a ResNet's
+        ``out += identity``) are only rewritten when ``remove_inplace_ops=True``,
+        because doing so requires symbolic tracing and changes the returned type.
+        It is opt-in: models without such ops (or whose only in-place ops are the
+        activation flags handled above) do not need it. If your model crashes under
+        ``grad_sample_mode="hooks"`` with ``RuntimeError: Output 0 of
+        BackwardHookFunction is a view and is being modified inplace``, re-run with
+        ``remove_inplace_ops=True``.
+
+        When ``remove_inplace_ops=True`` and tracing succeeds, the returned object
+        is a ``torch.fx.GraphModule``, not the original ``nn.Module`` subclass.
+        ``GraphModule`` is a subclass of ``nn.Module`` and preserves forward outputs
+        for typical models, but ``isinstance`` checks against the original class,
+        custom methods defined on the original class, pickling by class name, and
+        similar type-dependent code will observe the GraphModule type instead. A
+        warning is emitted in this case.
+
+        FX tracing also records a single execution path: data-independent control
+        flow in the root ``forward`` (e.g. ``if self.training``) is frozen to the
+        branch taken during tracing, so a later ``.train()``/``.eval()`` toggle may
+        have no effect. Standard ``nn.Dropout``/``nn.BatchNorm`` submodules keep
+        their own flags and are unaffected.
+
+        Rewriting replaces in-place writes with out-of-place equivalents. Forward
+        outputs are preserved, but aliasing semantics change: a tensor mutated in
+        place is instead replaced by a new tensor, so other aliases to the original
+        storage will not see the update. Code relying on in-place side effects via
+        aliasing may diverge in behavior.
+
+        Models that cannot be symbolically traced (e.g. data-dependent control flow)
+        are returned unchanged and the fallback is logged at INFO level.
+
         Args:
             module: The root module to be made compatible.
-            **kwargs: Arbitrary keyword arguments.
+            remove_inplace_ops: If True, rewrite functional/tensor in-place ops
+                out-of-place via symbolic tracing. Defaults to False. No-op if the
+                module cannot be traced.
+            **kwargs: Arbitrary keyword arguments forwarded to the per-module fixers.
 
         Returns:
-            Fixed module.
+            Fixed module. Type is ``torch.fx.GraphModule`` when tracing succeeds with
+            ``remove_inplace_ops=True``, otherwise the original (cloned) ``nn.Module`` type.
         """
         module = clone_module(module)
         # iterate over all sub_modules
@@ -120,6 +166,29 @@ class ModuleValidator:
                 logger.info(
                     f"Replaced sub_module {sub_module_name} : {sub_module}"
                     f" with {new_sub_module}"
+                )
+        # in-place writes are incompatible with Opacus' backward hooks: always
+        # disable in-place activation flags, and optionally rewrite functional
+        # in-place ops (e.g. ``out += identity``) out-of-place.
+        disable_inplace(module)
+        if remove_inplace_ops:
+            module = fix_inplace_operations(module)
+            if isinstance(module, fx.GraphModule):
+                warnings.warn(
+                    "ModuleValidator.fix() traced your model with torch.fx to rewrite "
+                    "any in-place operations out-of-place. Because of this, the returned "
+                    "model is now a torch.fx.GraphModule instead of its original type. "
+                    "Two things to be aware of:\n"
+                    "  1. Anything that checks the model's type -- isinstance checks, "
+                    "custom methods on your model class, or pickling -- may not behave "
+                    "as before.\n"
+                    "  2. If your model's forward() uses an if/else on a flag such as "
+                    "self.training, tracing keeps only the branch taken while tracing, "
+                    "so switching between .train() and .eval() afterwards may have no "
+                    "effect. (Standard layers like Dropout and BatchNorm are not "
+                    "affected.)\n"
+                    "To skip tracing and keep your model's original type, call "
+                    "ModuleValidator.fix(..., remove_inplace_ops=False).",
                 )
         # return fixed module
         return module
