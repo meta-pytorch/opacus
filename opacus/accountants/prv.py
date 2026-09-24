@@ -103,7 +103,7 @@ class PRVAccountant(IAccountant):
         # this discrete PRV can be used to directly estimate and bound epsilon
         _, _, eps_upper = dprv.compute_epsilon(delta, delta_error, eps_error)
         # return upper bound as we want guarantee, not just estimate
-        return eps_upper
+        return max(eps_upper, 0.0)
 
     def _get_dprv(self, eps_error, delta_error):
         # convert history to privacy loss random variables (prvs). Opacus currently
