@@ -80,3 +80,25 @@ class Conv3d_test(GradSampleHooks_test):
             rtol=10e-3,
             ew_compatible=is_ew_compatible,
         )
+
+    def test_conv3d_padding_modes(self):
+        # Non-zero padding modes pad the input before the convolution
+        for padding_mode in ["reflect", "replicate", "circular"]:
+            for padding in [(1, 2, 1), "same"]:
+                with self.subTest(padding_mode=padding_mode, padding=padding):
+                    x = torch.randn([4, 2, 4, 5, 6])
+                    conv = nn.Conv3d(
+                        in_channels=2,
+                        out_channels=4,
+                        kernel_size=(2, 3, 3),
+                        padding=padding,
+                        padding_mode=padding_mode,
+                    )
+                    self.run_test(
+                        x,
+                        conv,
+                        batch_first=True,
+                        atol=10e-5,
+                        rtol=10e-3,
+                        ew_compatible=padding != "same",
+                    )

@@ -69,3 +69,27 @@ class Conv1d_test(GradSampleHooks_test):
         self.run_test(
             x, conv, batch_first=True, atol=10e-5, rtol=10e-4, ew_compatible=N > 0
         )
+
+    def test_conv1d_padding_modes(self):
+        # Non-zero padding modes pad the input before the convolution
+        for padding_mode in ["reflect", "replicate", "circular"]:
+            for padding in [2, "same"]:
+                with self.subTest(padding_mode=padding_mode, padding=padding):
+                    x = torch.randn([4, 4, 8])
+                    conv = nn.Conv1d(
+                        in_channels=4,
+                        out_channels=6,
+                        kernel_size=3,
+                        padding=padding,
+                        dilation=2,
+                        groups=2,
+                        padding_mode=padding_mode,
+                    )
+                    self.run_test(
+                        x,
+                        conv,
+                        batch_first=True,
+                        atol=10e-5,
+                        rtol=10e-4,
+                        ew_compatible=padding != "same",
+                    )
