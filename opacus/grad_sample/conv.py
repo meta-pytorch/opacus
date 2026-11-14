@@ -59,26 +59,37 @@ def compute_conv_grad_sample(
         if isinstance(layer, torch.distributed.fsdp.FSDPModule)
         else type(layer)
     )
+    padding = layer.padding
+    if layer.padding_mode != "zeros":
+        # Non-zero padding modes are applied to the input before the convolution
+        # (see ``torch.nn.modules.conv._ConvNd._conv_forward``), so do the same
+        # here and unfold the padded input without any extra zero padding.
+        activations = F.pad(
+            activations,
+            layer._reversed_padding_repeated_twice,
+            mode=layer.padding_mode,
+        )
+        padding = (0,) * len(layer.kernel_size)
     # get activations and backprops in shape depending on the Conv layer
     if layer_type is nn.Conv2d:
         activations = unfold2d(
             activations,
             kernel_size=layer.kernel_size,
-            padding=layer.padding,
+            padding=padding,
             stride=layer.stride,
             dilation=layer.dilation,
         )
     elif layer_type is nn.Conv1d:
         activations = activations.unsqueeze(-2)  # add the H dimension
         # set arguments to tuples with appropriate second element
-        if layer.padding == "same":
+        if padding == "same":
             total_pad = layer.dilation[0] * (layer.kernel_size[0] - 1)
             left_pad = math.floor(total_pad / 2)
             right_pad = total_pad - left_pad
-        elif layer.padding == "valid":
+        elif padding == "valid":
             left_pad, right_pad = 0, 0
         else:
-            left_pad, right_pad = layer.padding[0], layer.padding[0]
+            left_pad, right_pad = padding[0], padding[0]
         activations = F.pad(activations, (left_pad, right_pad))
         activations = torch.nn.functional.unfold(
             activations,
@@ -90,7 +101,7 @@ def compute_conv_grad_sample(
         activations = unfold3d(
             activations,
             kernel_size=layer.kernel_size,
-            padding=layer.padding,
+            padding=padding,
             stride=layer.stride,
             dilation=layer.dilation,
         )

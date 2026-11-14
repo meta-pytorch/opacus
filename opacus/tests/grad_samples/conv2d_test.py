@@ -170,3 +170,27 @@ class Conv2d_test(GradSampleHooks_test):
         self.assertLess(
             torch.norm(m._module.weight.grad_sample[0] - m._module.weight.grad), 2e-7
         )
+
+    def test_conv2d_padding_modes(self) -> None:
+        # Non-zero padding modes pad the input before the convolution
+        for padding_mode in ["reflect", "replicate", "circular"]:
+            for padding in [(1, 2), "same"]:
+                with self.subTest(padding_mode=padding_mode, padding=padding):
+                    x = torch.randn([4, 4, 7, 8])
+                    conv = nn.Conv2d(
+                        in_channels=4,
+                        out_channels=6,
+                        kernel_size=(2, 3),
+                        padding=padding,
+                        dilation=(1, 2),
+                        groups=2,
+                        padding_mode=padding_mode,
+                    )
+                    self.run_test(
+                        x,
+                        conv,
+                        batch_first=True,
+                        atol=10e-5,
+                        rtol=10e-4,
+                        ew_compatible=padding != "same",
+                    )
