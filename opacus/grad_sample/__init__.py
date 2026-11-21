@@ -16,6 +16,10 @@
 from .conv import compute_conv_grad_sample  # noqa
 from .dp_multihead_attention import compute_sequence_bias_grad_sample  # noqa
 from .dp_rnn import compute_rnn_linear_grad_sample  # noqa
+from .dp_shifted_window_attention import (  # noqa
+    compute_shifted_window_attention_grad_sample,
+    compute_shifted_window_attention_norm_sample,
+)
 from .embedding import compute_embedding_grad_sample  # noqa
 from .embedding_norm_sample import compute_embedding_norm_sample  # noqa
 from .grad_sample_module import (

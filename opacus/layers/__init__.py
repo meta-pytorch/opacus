@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from .dp_multihead_attention import DPMultiheadAttention, SequenceBias
+from .dp_shifted_window_attention import DPShiftedWindowAttention
 from .dp_rnn import DPGRU, DPLSTM, DPRNN
 from .param_rename import RenameParamsMixin
 
@@ -23,6 +24,7 @@ __all__ = [
     "DPGRU",
     "DPLSTM",
     "DPMultiheadAttention",
+    "DPShiftedWindowAttention",
     "RenameParamsMixin",
     "SequenceBias",
 ]
