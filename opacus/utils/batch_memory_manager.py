@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import math
-from typing import List
+from typing import List, Sequence, Union
 
 import numpy as np
 from opacus.optimizers import DPOptimizer
@@ -21,7 +21,43 @@ from opacus.utils.uniform_sampler import (
     DistributedUniformWithReplacementSampler,
     UniformWithReplacementSampler,
 )
+from torch.optim import Optimizer
 from torch.utils.data import BatchSampler, DataLoader, Sampler
+
+
+def _to_optimizer_list(
+    optimizer: Union[DPOptimizer, Optimizer, Sequence[Union[DPOptimizer, Optimizer]]],
+) -> List[Optimizer]:
+    """
+    Normalizes the optimizer argument into a flat list of optimizers.
+
+    Accepts a single optimizer (DP or standard) or an iterable of optimizers
+    and validates that every element is a ``torch.optim.Optimizer``.
+
+    Args:
+        optimizer: single optimizer instance or a sequence of optimizers
+
+    Returns:
+        List of optimizer instances
+    """
+    if isinstance(optimizer, Optimizer):
+        return [optimizer]
+
+    try:
+        optimizers = list(optimizer)
+    except TypeError:
+        raise TypeError(
+            f"optimizer must be an optimizer instance or a sequence of "
+            f"optimizers, got: {type(optimizer)}"
+        )
+
+    for opt in optimizers:
+        if not isinstance(opt, Optimizer):
+            raise TypeError(
+                f"All elements must be optimizer instances, got: {type(opt)}"
+            )
+
+    return optimizers
 
 
 class BatchSplittingSampler(Sampler[List[int]]):
@@ -38,23 +74,42 @@ class BatchSplittingSampler(Sampler[List[int]]):
         *,
         sampler: Sampler[List[int]],
         max_batch_size: int,
-        optimizer: DPOptimizer,
+        optimizer: Union[
+            DPOptimizer, Optimizer, Sequence[Union[DPOptimizer, Optimizer]]
+        ],
     ):
         """
 
         Args:
             sampler: Wrapped Sampler instance
             max_batch_size: Max size of emitted chunk of indices
-            optimizer: optimizer instance to notify when the logical batch is over
+            optimizer: optimizer instance (or a sequence of optimizer instances,
+                e.g. for private GANs or actor-critic models) to notify when the
+                logical batch is over. Optimizers without DP support (i.e.
+                without ``signal_skip_step``) are silently ignored.
         """
         self.sampler = sampler
         self.max_batch_size = max_batch_size
-        self.optimizer = optimizer
+        self.optimizers: List[Optimizer] = _to_optimizer_list(optimizer)
+
+    def _signal_skip_step(self, do_skip: bool):
+        """
+        Notifies all optimizers that support it whether the next step should be
+        skipped (i.e. only perform clipping and per sample gradient accumulation).
+
+        Standard PyTorch optimizers don't have ``signal_skip_step`` and are
+        skipped, so they can safely be mixed with DPOptimizers.
+        """
+        for optimizer in self.optimizers:
+            if hasattr(optimizer, "signal_skip_step") and callable(
+                optimizer.signal_skip_step
+            ):
+                optimizer.signal_skip_step(do_skip=do_skip)
 
     def __iter__(self):
         for batch_idxs in self.sampler:
             if len(batch_idxs) == 0:
-                self.optimizer.signal_skip_step(do_skip=False)
+                self._signal_skip_step(do_skip=False)
                 yield []
                 continue
 
@@ -63,9 +118,9 @@ class BatchSplittingSampler(Sampler[List[int]]):
             )
             split_idxs = [s.tolist() for s in split_idxs]
             for x in split_idxs[:-1]:
-                self.optimizer.signal_skip_step(do_skip=True)
+                self._signal_skip_step(do_skip=True)
                 yield x
-            self.optimizer.signal_skip_step(do_skip=False)
+            self._signal_skip_step(do_skip=False)
             yield split_idxs[-1]
 
     def __len__(self):
@@ -85,7 +140,10 @@ class BatchSplittingSampler(Sampler[List[int]]):
 
 
 def wrap_data_loader(
-    *, data_loader: DataLoader, max_batch_size: int, optimizer: DPOptimizer
+    *,
+    data_loader: DataLoader,
+    max_batch_size: int,
+    optimizer: Union[DPOptimizer, Optimizer, Sequence[Union[DPOptimizer, Optimizer]]],
 ):
     """
     Replaces batch_sampler in the input data loader with ``BatchSplittingSampler``
@@ -93,7 +151,7 @@ def wrap_data_loader(
     Args:
         data_loader: Wrapper DataLoader
         max_batch_size: max physical batch size we want to emit
-        optimizer: DPOptimizer instance used for training
+        optimizer: DPOptimizer instance (or a sequence of optimizers) used for training
 
     Returns:
         New DataLoader instance with batch_sampler wrapped in ``BatchSplittingSampler``
@@ -142,6 +200,12 @@ class BatchMemoryManager:
     If the batch was the last one of the current logical batch, then
     ``optimizer.step()`` and ``optimizer.zero_grad()`` will behave normally.
 
+    In addition to a single optimizer, it also accepts a sequence of optimizers
+    (e.g. one per model, as in private GANs or actor-critic setups). The logical
+    batch boundaries are then communicated to every optimizer that supports it;
+    standard PyTorch optimizers without DP support are handled cleanly and are
+    simply left to step on every physical batch.
+
     Example:
         >>> # Assuming you've initialized your objects and passed them to PrivacyEngine.
         >>> # For this example we assume data_loader is initialized with batch_size=4
@@ -166,17 +230,19 @@ class BatchMemoryManager:
         *,
         data_loader: DataLoader,
         max_physical_batch_size: int,
-        optimizer: DPOptimizer,
+        optimizer: Union[
+            DPOptimizer, Optimizer, Sequence[Union[DPOptimizer, Optimizer]]
+        ],
     ):
         self.data_loader = data_loader
-        self.optimizer = optimizer
+        self.optimizers: List[Optimizer] = _to_optimizer_list(optimizer)
         self.max_physical_batch_size = max_physical_batch_size
 
     def __enter__(self):
         return wrap_data_loader(
             data_loader=self.data_loader,
             max_batch_size=self.max_physical_batch_size,
-            optimizer=self.optimizer,
+            optimizer=self.optimizers,
         )
 
     def __exit__(self, type, value, traceback):
