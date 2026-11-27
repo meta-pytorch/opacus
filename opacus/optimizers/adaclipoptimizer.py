@@ -81,12 +81,17 @@ class AdaClipDPOptimizer(DPOptimizer):
 
     def zero_grad(self, set_to_none: bool = False):
         """
-        Clear gradients, self.sample_size and self.unclipped_num
+        Clear gradients, self.sample_size and self.unclipped_num.
+
+        When the last step was skipped (virtual batches, e.g. ``BatchMemoryManager``),
+        the counts of the micro-batches seen so far are kept, so that
+        ``update_max_grad_norm`` sees the whole logical batch.
         """
         super().zero_grad(set_to_none)
 
-        self.sample_size = 0
-        self.unclipped_num = 0
+        if not self._is_last_step_skipped:
+            self.sample_size = 0
+            self.unclipped_num = 0
 
     def clip_and_accumulate(self):
         per_param_norms = [
